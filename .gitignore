@@ -1,0 +1,46 @@
+# ─── Node / npm ────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Build outputs ──────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+
+# ─── Environment — never commit secrets ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Hardhat / Foundry artifacts and cache ──────────────────────────────────
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
+# ─── Backend / agents runtime data ──────────────────────────────────────────
+backend/*.db
+backend/*.sqlite
+agents/logs/
+
+# ─── Simulation outputs (committed intentionally; exclude large intermediates)
+simulation/output/*.tmp
+
+# ─── TypeScript build info ──────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Editor / OS ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vscode/settings.json
+.idea/
