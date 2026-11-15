@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  chain:
+    image: "node:20-slim"
+    working_dir: /app/contracts
+    volumes:
+      - ./contracts:/app/contracts
+      - ./contracts/deployments:/app/contracts/deployments
+    command: "npx hardhat node"
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  deploy:
+    image: "node:20-slim"
+    working_dir: /app/contracts
+    volumes:
+      - ./contracts:/app/contracts
+    depends_on:
+      chain:
+        condition: service_healthy
+    command: "npx hardhat run scripts/deploy.ts --network localhost"
+
+  backend:
+    build: "./backend"
+    env_file: "./backend/.env"
+    ports:
+      - "3001:3001"
+    depends_on:
+      deploy:
+        condition: service_completed_successfully
+    volumes:
+      - ./contracts/deployments:/app/deployments:ro
+
+  provider-agent:
+    build:
+      context: "./agents"
+      dockerfile: "Dockerfile.provider"
+    env_file: "./agents/.env"
+    depends_on:
+      - backend
+
+  verifier-service:
+    build:
+      context: "./agents"
+      dockerfile: "Dockerfile.verifier"
+    env_file: "./agents/.env"
+    depends_on:
+      - backend
+
+  frontend:
+    build: "./frontend"
+    env_file: "./frontend/.env"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
