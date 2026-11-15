@@ -4,7 +4,6 @@
  * GET  /providers
  * GET  /providers/:address
  * PUT  /providers/:address/profile
- * POST /jobs/spec
  */
 import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
@@ -16,7 +15,7 @@ import { notFound, badRequest, serverError } from '../lib/errors';
 
 const router = Router();
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────
 
 interface ProviderRow {
   address: string;
@@ -55,66 +54,79 @@ function formatProvider(p: ProviderRow, profile: ProfileRow | undefined) {
 // ─── GET /providers ───────────────────────────────────────────────────────
 
 router.get('/providers', (req: Request, res: Response) => {
-  const {
-    gpu, minVram, maxPrice, minStake, minReputation, available, sort,
-  } = req.query as Record<string, string | undefined>;
+  try {
+    const {
+      gpu, minVram, maxPrice, minStake, minReputation, available, sort,
+    } = req.query as Record<string, string | undefined>;
 
-  // Build query dynamically
-  let sql = `
-    SELECT p.*, pp.profile_json, pp.profile_cid, pp.profile_hash
-    FROM providers p
-    LEFT JOIN provider_profiles pp ON pp.address = p.address
-    WHERE 1=1
-  `;
-  const params: Record<string, unknown> = {};
+    // Two separate simple queries — avoids JOIN performance issues with sql.js
+    const providerRows = db.all<ProviderRow>('SELECT * FROM providers');
+    const profileRows = db.all<ProfileRow>('SELECT * FROM provider_profiles');
 
-  if (minStake) {
-    // Compare as numbers — stake_wei stored as text so CAST needed
-    params.minStake = minStake;
-    sql += ' AND CAST(p.stake_wei AS INTEGER) >= CAST(:minStake AS INTEGER)';
-  }
-  if (minReputation) {
-    params.minReputation = parseInt(minReputation, 10);
-    sql += ' AND p.reputation_bps >= :minReputation';
-  }
+    // Build lookup map
+    const profileMap = new Map<string, ProfileRow>();
+    for (const pp of profileRows) profileMap.set(pp.address, pp);
 
-  // GPU and availability filters require checking profile JSON
-  // (profile is stored as a JSON blob — SQLite json_extract is available)
-  if (gpu) {
-    params.gpu = `%${gpu}%`;
-    sql += ` AND json_extract(pp.profile_json, '$.gpu.model') LIKE :gpu`;
-  }
-  if (minVram) {
-    params.minVram = parseInt(minVram, 10);
-    sql += ` AND CAST(json_extract(pp.profile_json, '$.gpu.vramGb') AS INTEGER) >= :minVram`;
-  }
-  if (maxPrice) {
-    params.maxPrice = parseFloat(maxPrice);
-    sql += ` AND CAST(json_extract(pp.profile_json, '$.pricePerHour') AS REAL) <= :maxPrice`;
-  }
-  if (available === 'true') {
-    sql += ` AND json_extract(pp.profile_json, '$.availability') = 'available'`;
-  }
+    let results = providerRows.map((p) => ({
+      raw: p,
+      formatted: formatProvider(p, profileMap.get(p.address)),
+    }));
 
-  // Sort
-  switch (sort) {
-    case 'price': sql += ` ORDER BY CAST(json_extract(pp.profile_json, '$.pricePerHour') AS REAL) ASC`; break;
-    case 'reputation': sql += ' ORDER BY p.reputation_bps DESC'; break;
-    case 'stake': sql += ' ORDER BY CAST(p.stake_wei AS INTEGER) DESC'; break;
-    case 'rating': sql += ` ORDER BY CAST(json_extract(pp.profile_json, '$.rating') AS REAL) DESC`; break;
-    default: sql += ' ORDER BY p.reputation_bps DESC';
+    // Apply filters in JS
+    if (minStake) {
+      const minS = parseFloat(minStake) * 1e18;
+      results = results.filter((r) => parseFloat(r.raw.stake_wei) >= minS);
+    }
+    if (minReputation) {
+      const minR = parseInt(minReputation, 10);
+      results = results.filter((r) => r.raw.reputation_bps >= minR);
+    }
+    if (gpu) {
+      const q = gpu.toLowerCase();
+      results = results.filter((r) => {
+        const profile = r.formatted.profile as Record<string, unknown> | null;
+        const model = (profile?.gpu as Record<string, unknown> | undefined)?.model?.toString() ?? '';
+        return model.toLowerCase().includes(q);
+      });
+    }
+    if (minVram) {
+      const mv = parseInt(minVram, 10);
+      results = results.filter((r) => {
+        const profile = r.formatted.profile as Record<string, unknown> | null;
+        return Number((profile?.gpu as Record<string, unknown> | undefined)?.vramGb ?? 0) >= mv;
+      });
+    }
+    if (maxPrice) {
+      const mp = parseFloat(maxPrice);
+      results = results.filter((r) => {
+        const profile = r.formatted.profile as Record<string, unknown> | null;
+        return Number(profile?.pricePerHour ?? 999) <= mp;
+      });
+    }
+    if (available === 'true') {
+      results = results.filter((r) => {
+        const profile = r.formatted.profile as Record<string, unknown> | null;
+        return profile?.availability === 'available';
+      });
+    }
+
+    // Sort
+    switch (sort) {
+      case 'reputation': results.sort((a, b) => b.raw.reputation_bps - a.raw.reputation_bps); break;
+      case 'price': results.sort((a, b) => {
+        const profileA = a.formatted.profile as Record<string, unknown> | null;
+        const profileB = b.formatted.profile as Record<string, unknown> | null;
+        return Number(profileA?.pricePerHour ?? 0) - Number(profileB?.pricePerHour ?? 0);
+      }); break;
+      default: results.sort((a, b) => b.raw.reputation_bps - a.raw.reputation_bps);
+    }
+
+    return res.json({ providers: results.map((r) => r.formatted) });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[GET /providers] Error:', msg);
+    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: msg } });
   }
-
-  const rows = db.all<ProviderRow & Partial<ProfileRow>>(sql, params);
-
-  const providers = rows.map((r) => {
-    const profilePart: ProfileRow | undefined = r.profile_json
-      ? { address: r.address, profile_json: r.profile_json, profile_cid: r.profile_cid ?? '', profile_hash: r.profile_hash ?? '', updated_at: '' }
-      : undefined;
-    return formatProvider(r as ProviderRow, profilePart);
-  });
-
-  return res.json({ providers });
 });
 
 // ─── GET /providers/:address ──────────────────────────────────────────────
@@ -137,7 +149,6 @@ router.get('/providers/:address', (req: Request, res: Response) => {
 });
 
 // ─── PUT /providers/:address/profile ─────────────────────────────────────
-// Updates off-chain display profile. Requires EIP-191 signed message.
 
 router.put('/providers/:address/profile', async (req: Request, res: Response) => {
   const { address } = req.params;
@@ -147,7 +158,7 @@ router.put('/providers/:address/profile', async (req: Request, res: Response) =>
     return badRequest(res, 'profile and signature are required');
   }
 
-  // EIP-191 signature verification — signer must match :address
+  // EIP-191 signature verification
   try {
     const message = JSON.stringify(profile);
     const recovered = ethers.verifyMessage(message, signature);
@@ -162,13 +173,12 @@ router.put('/providers/:address/profile', async (req: Request, res: Response) =>
     });
   }
 
-  // Ensure provider row exists (upsert)
+  // Ensure provider row exists
   db.run(
     `INSERT OR IGNORE INTO providers (address, capability_hash) VALUES (:address, '0x')`,
     { address }
   );
 
-  // Pin to IPFS if configured; otherwise store without CID
   let profileCid = '';
   let profileHash = '';
 
@@ -181,7 +191,6 @@ router.put('/providers/:address/profile', async (req: Request, res: Response) =>
       return serverError(res, `IPFS pin failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   } else {
-    // Compute hash locally when IPFS not configured
     profileHash = `0x${crypto.createHash('sha256').update(JSON.stringify(profile)).digest('hex')}`;
   }
 

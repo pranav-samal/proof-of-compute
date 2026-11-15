@@ -4,6 +4,13 @@
  * Reads and validates all required environment variables.
  * Throws at startup if any required variable is missing.
  */
+import { config as loadDotenv } from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Load .env from the agents/ root directory
+const __dirname = dirname(fileURLToPath(import.meta.url));
+loadDotenv({ path: resolve(__dirname, '..', '.env') });
 
 export interface Config {
   rpcUrl: string;

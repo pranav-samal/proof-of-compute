@@ -1,26 +1,26 @@
 /**
- * db.ts — sql.js database singleton.
+ * db.ts — better-sqlite3 database singleton.
  *
- * sql.js is a pure JavaScript/WASM port of SQLite — zero native compilation,
- * works on any platform without build tools.
+ * better-sqlite3 is a native synchronous SQLite driver.
+ * It uses a prebuilt binary (no compilation needed on most platforms).
+ * Much lower memory footprint than sql.js (WASM).
  *
  * API surface:
  *   db.run(sql, params?)   — execute INSERT/UPDATE/DELETE/DDL
- *   db.get<T>(sql, params?)  — first row as T, or undefined
- *   db.all<T>(sql, params?)  — all rows as T[]
+ *   db.get<T>(sql, params?) — first row as T, or undefined
+ *   db.all<T>(sql, params?) — all rows as T[]
  *   db.exec(sql)           — multi-statement SQL (schema migrations)
- *   db.persist()           — flush in-memory DB to disk file
+ *   db.persist()           — no-op (better-sqlite3 writes to disk automatically)
  */
-import initSqlJs from 'sql.js';
-import type { Database, SqlJsStatic, BindParams } from 'sql.js';
+import BetterSqlite3 from 'better-sqlite3';
+import type { Database as BSDatabase } from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { DATABASE_PATH } from '../config';
 
-// ─── Singleton state ──────────────────────────────────────────────────────
+// ─── Singleton ────────────────────────────────────────────────────────────
 
-let _sqlJs: SqlJsStatic | null = null;
-let _db: Database | null = null;
+let _db: BSDatabase | null = null;
 const dbFilePath = path.resolve(DATABASE_PATH);
 
 function ensureDir(): void {
@@ -28,107 +28,67 @@ function ensureDir(): void {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-// ─── Initialisation ───────────────────────────────────────────────────────
-
-/**
- * Open (or create) the database. Must be awaited before any query.
- * Safe to call multiple times — returns the existing instance.
- */
-export async function openDatabase(): Promise<Database> {
+/** Opens (or creates) the database. Safe to call multiple times. */
+export async function openDatabase(): Promise<BSDatabase> {
   if (_db) return _db;
-
-  _sqlJs = await initSqlJs();
   ensureDir();
-
-  if (fs.existsSync(dbFilePath)) {
-    const buf = fs.readFileSync(dbFilePath);
-    _db = new _sqlJs.Database(buf);
-  } else {
-    _db = new _sqlJs.Database();
-  }
-
-  _db.run('PRAGMA foreign_keys = ON;');
+  _db = new BetterSqlite3(dbFilePath);
+  _db.pragma('journal_mode = WAL');
+  _db.pragma('foreign_keys = ON');
   return _db;
 }
 
-// ─── Persist ─────────────────────────────────────────────────────────────
-
-/** Write the in-memory database back to the .db file. */
+/** No-op — better-sqlite3 writes to disk automatically on every statement. */
 export function persist(): void {
-  if (!_db) throw new Error('[db] Not initialised — await openDatabase() first');
-  ensureDir();
-  const data = _db.export();
-  fs.writeFileSync(dbFilePath, Buffer.from(data));
+  // better-sqlite3 is synchronous and always writes to disk — nothing to do
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
-
-function assertOpen(): Database {
+function assertOpen(): BSDatabase {
   if (!_db) throw new Error('[db] Not initialised — await openDatabase() first');
   return _db;
 }
 
-/**
- * Convert a plain JS object { name: value } into sql.js named-param form
- * { ':name': value }. Positional arrays are passed through unchanged.
- */
-function toBindParams(params?: BindParams | Record<string, unknown>): BindParams | undefined {
-  if (params === undefined || params === null) return undefined;
-  if (Array.isArray(params)) return params as BindParams;
-  // Named params: prefix keys with ':'
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(params as Record<string, unknown>)) {
-    out[k.startsWith(':') ? k : `:${k}`] = v;
-  }
-  return out as BindParams;
-}
+// ─── Query helpers ─────────────────────────────────────────────────────────
 
-// ─── Public query API ─────────────────────────────────────────────────────
+type Params = Record<string, unknown> | unknown[];
 
 /** Execute a mutating SQL statement. */
-export function run(
-  sql: string,
-  params?: BindParams | Record<string, unknown>
-): void {
-  assertOpen().run(sql, toBindParams(params));
+export function run(sql: string, params?: Params): void {
+  const db = assertOpen();
+  if (params !== undefined) {
+    db.prepare(sql).run(params as Record<string, unknown>);
+  } else {
+    db.prepare(sql).run();
+  }
 }
 
 /** Return the first matching row as T, or undefined. */
-export function get<T = Record<string, unknown>>(
-  sql: string,
-  params?: BindParams | Record<string, unknown>
-): T | undefined {
+export function get<T = Record<string, unknown>>(sql: string, params?: Params): T | undefined {
   const db = assertOpen();
   const stmt = db.prepare(sql);
-  stmt.bind(toBindParams(params));
-  if (!stmt.step()) { stmt.free(); return undefined; }
-  const row = stmt.getAsObject({}) as T;
-  stmt.free();
-  return row;
+  if (params !== undefined) {
+    return stmt.get(params as Record<string, unknown>) as T | undefined;
+  }
+  return stmt.get() as T | undefined;
 }
 
 /** Return all matching rows as T[]. */
-export function all<T = Record<string, unknown>>(
-  sql: string,
-  params?: BindParams | Record<string, unknown>
-): T[] {
+export function all<T = Record<string, unknown>>(sql: string, params?: Params): T[] {
   const db = assertOpen();
   const stmt = db.prepare(sql);
-  stmt.bind(toBindParams(params));
-  const rows: T[] = [];
-  while (stmt.step()) rows.push(stmt.getAsObject({}) as T);
-  stmt.free();
-  return rows;
+  if (params !== undefined) {
+    return stmt.all(params as Record<string, unknown>) as T[];
+  }
+  return stmt.all() as T[];
 }
 
-/** Run a multi-statement SQL string (used for schema migration). */
+/** Run a multi-statement SQL string (schema migration). */
 export function exec(sql: string): void {
-  assertOpen().run(sql);
+  assertOpen().exec(sql);
 }
 
 export function isOpen(): boolean {
   return _db !== null;
 }
 
-// Default export so callers can do `import db from './db'`
 export default { run, get, all, exec, persist, openDatabase, isOpen };

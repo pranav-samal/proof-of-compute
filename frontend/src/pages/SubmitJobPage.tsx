@@ -381,21 +381,36 @@ function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-function StepReview({ values }: { values: FormValues }) {
+function StepReview({ values, onSignTransaction, signing }: {
+  values: FormValues;
+  onSignTransaction: () => void;
+  signing: boolean;
+}) {
   const policy = useMemo<VerificationPolicy>(
     () => computePolicy(values.workloadType, values.reproducibilityClass, values.assuranceLevel, values.budgetUsd),
     [values.workloadType, values.reproducibilityClass, values.assuranceLevel, values.budgetUsd],
   );
   const contractReady = chain.isContractConfigured();
+  const { connected } = useWallet();
+  const canSign = contractReady && connected;
 
   return (
     <div className="space-y-5">
-      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
-        <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-amber-800">
-          <strong>Demo only.</strong> This form does not execute a real job, transfer funds, or interact with any blockchain. All values are illustrative.
-        </p>
-      </div>
+      {!contractReady && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-amber-800">
+            Contract is not configured. Set <code>VITE_CONTRACT_JOB_ESCROW</code> in your <code>.env</code> file.
+          </p>
+        </div>
+      )}
+
+      {contractReady && !connected && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-amber-800">Connect your wallet to sign the transaction.</p>
+        </div>
+      )}
 
       <div className="bg-white/70 border border-gray-200/70 rounded-2xl backdrop-blur-sm p-5">
         <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Workload</p>
@@ -440,19 +455,24 @@ function StepReview({ values }: { values: FormValues }) {
           <div>
             <p className="text-sm font-bold text-brand-900">Sign & Submit On-Chain</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {contractReady
-                ? 'Contract is configured. Signing will lock escrow and record the policy hash.'
-                : 'No contract configured yet. Connect a contract address to enable on-chain submission.'}
+              {canSign
+                ? 'Wallet connected. Clicking Sign will open MetaMask to lock escrow on-chain.'
+                : !contractReady ? 'Contract not configured — check frontend/.env'
+                  : 'Connect your wallet to continue.'}
             </p>
           </div>
           <button
-            disabled
-            title={contractReady ? undefined : 'Contract not yet configured — TODO'}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-pill text-sm font-bold bg-brand-900/20 text-brand-500 cursor-not-allowed border border-brand-200"
+            disabled={!canSign || signing}
+            onClick={onSignTransaction}
+            className={cn(
+              "inline-flex items-center gap-2 px-4 py-2 rounded-pill text-sm font-bold transition-all",
+              canSign && !signing
+                ? "bg-accent-500 text-white hover:bg-accent-600 shadow-accent cursor-pointer"
+                : "bg-brand-900/20 text-brand-500 cursor-not-allowed border border-brand-200"
+            )}
           >
             <Lock className="w-4 h-4" />
-            Sign Transaction
-            {!contractReady && <span className="text-xs font-normal">(TODO)</span>}
+            {signing ? 'Signing…' : 'Sign Transaction'}
           </button>
         </div>
       </div>
@@ -465,6 +485,7 @@ function StepReview({ values }: { values: FormValues }) {
 export function SubmitJobPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { connected } = useWallet();
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<FormValues>({
     ...DEFAULTS,
@@ -472,6 +493,8 @@ export function SubmitJobPage() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const [txError, setTxError] = useState<string | null>(null);
 
   useEffect(() => {
     const state = location.state as { providerId?: string } | null;
@@ -485,29 +508,55 @@ export function SubmitJobPage() {
     setErrors(cleared);
   }
 
+  async function handleSignTransaction() {
+    setTxError(null);
+    setSigning(true);
+    try {
+      // 1. Pin spec to IPFS via backend
+      const specPayload = {
+        type: values.workloadType,
+        params: { description: values.description, gpuModel: values.gpuModel },
+        image: 'poc-runner:latest',
+        resources: { cpuCores: 2, memoryMb: 4096, timeLimitSecs: 3600 },
+      };
+      const { cid, profileHash } = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001'}/jobs/spec`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(specPayload) }
+      ).then((r) => r.json()) as { cid: string; profileHash: string };
+
+      // 2. Convert budget to wei (1 ETH = 1e18 wei; use budget in ETH for demo)
+      const paymentWei = BigInt(Math.round(values.budgetUsd * 1e14)); // $20 ≈ 0.002 ETH at demo price
+
+      // 3. Deadline = now + 2 hours
+      const deadlineTs = Math.floor(Date.now() / 1000) + 7200;
+
+      // 4. Repro class mapping
+      const reproMap = { D: 0, T: 1, N: 2 };
+      const reproClass = reproMap[values.reproducibilityClass];
+
+      // 5. Assurance mapping
+      const assuranceMap = { low: 0, medium: 1, high: 2, maximum: 3 };
+      const assurance = assuranceMap[values.assuranceLevel];
+
+      // 6. Call contract via chain.ts real adapter
+      const { txHash, jobId } = await chain.registerJobOnChain(
+        cid, profileHash, reproClass, assurance, deadlineTs, paymentWei
+      );
+
+      setSubmitted(true);
+      navigate('/jobs', { state: { newJobId: jobId, txHash } });
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : 'Transaction failed');
+    } finally {
+      setSigning(false);
+    }
+  }
+
   async function handleNext() {
     const stepErrors = validate(values, step);
     if (Object.keys(stepErrors).length > 0) { setErrors(stepErrors); return; }
     setErrors({});
-    if (step < STEPS.length - 1) {
-      setStep((s) => s + 1);
-    } else {
-      // Register via service adapter (mock)
-      await api.registerJob({
-        workloadType: values.workloadType,
-        gpuModel: values.gpuModel,
-        minVramGb: values.minVramGb,
-        minRamGb: values.minRamGb,
-        frameworks: values.frameworks,
-        budgetUsd: values.budgetUsd,
-        deadline: values.deadline || undefined,
-        reproducibilityClass: values.reproducibilityClass,
-        assuranceLevel: values.assuranceLevel,
-        description: values.description,
-        policy: computePolicy(values.workloadType, values.reproducibilityClass, values.assuranceLevel, values.budgetUsd),
-      });
-      setSubmitted(true);
-    }
+    setStep((s) => s + 1);
   }
 
   function handleBack() { setErrors({}); setStep((s) => Math.max(0, s - 1)); }
@@ -554,7 +603,12 @@ export function SubmitJobPage() {
           {step === 1 && <StepResources values={values} errors={errors} onChange={update} />}
           {step === 2 && <StepBudget values={values} errors={errors} onChange={update} />}
           {step === 3 && <StepRisk values={values} onChange={update} />}
-          {step === 4 && <StepReview values={values} />}
+          {step === 4 && <StepReview values={values} onSignTransaction={handleSignTransaction} signing={signing} />}
+          {txError && (
+            <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+              Transaction error: {txError}
+            </div>
+          )}
 
           <div className="flex items-center justify-between mt-8 pt-5 border-t border-gray-100">
             <Button variant="ghost" size="md" onClick={handleBack} disabled={step === 0}>
@@ -562,10 +616,12 @@ export function SubmitJobPage() {
             </Button>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">Step {step + 1} of {STEPS.length}</span>
-              <Button variant="primary" size="md" onClick={handleNext}>
-                {step === STEPS.length - 1 ? 'Save Configuration' : 'Continue'}
-                {step < STEPS.length - 1 && <ChevronRight className="w-4 h-4" />}
-              </Button>
+              {step < STEPS.length - 1 && (
+                <Button variant="primary" size="md" onClick={handleNext}>
+                  Continue
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
