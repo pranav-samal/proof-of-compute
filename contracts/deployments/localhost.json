@@ -1,0 +1,1805 @@
+{
+  "ProviderRegistry": {
+    "address": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "escrow_",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnableInvalidOwner",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "OwnableUnauthorizedAccount",
+        "type": "error"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "previousOwner",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          }
+        ],
+        "name": "ProviderSlashed",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint16",
+            "name": "reputationBps",
+            "type": "uint16"
+          }
+        ],
+        "name": "ReputationUpdated",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "StakeDeposited",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "StakeWithdrawn",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "verifier",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "bond",
+            "type": "uint256"
+          }
+        ],
+        "name": "VerifierRegistered",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "verifier",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "VerifierSlashed",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "depositStake",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          }
+        ],
+        "name": "freeStake",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "v",
+            "type": "address"
+          }
+        ],
+        "name": "isEligibleVerifier",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "lockStake",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint8",
+            "name": "outcome",
+            "type": "uint8"
+          }
+        ],
+        "name": "recordOutcome",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "capabilityHash",
+            "type": "bytes32"
+          }
+        ],
+        "name": "registerProvider",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "registerVerifier",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          }
+        ],
+        "name": "reputationBps",
+        "outputs": [
+          {
+            "internalType": "uint16",
+            "name": "",
+            "type": "uint16"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          }
+        ],
+        "name": "riskHistory",
+        "outputs": [
+          {
+            "internalType": "uint32",
+            "name": "disputeCount",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "slashCount",
+            "type": "uint32"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          }
+        ],
+        "name": "slash",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "verifier",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "slashBond",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          }
+        ],
+        "name": "totalStake",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "unlockStake",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "index",
+            "type": "uint256"
+          }
+        ],
+        "name": "verifierAt",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "verifier",
+            "type": "address"
+          }
+        ],
+        "name": "verifierBond",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "verifierCount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "withdrawBond",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "withdrawStake",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ]
+  },
+  "VerificationPolicy": {
+    "address": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "providerRegistry_",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [],
+        "name": "MathOverflowedMulDiv",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnableInvalidOwner",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "OwnableUnauthorizedAccount",
+        "type": "error"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "previousOwner",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "payment",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint8",
+            "name": "reproClass",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "assurance",
+            "type": "uint8"
+          }
+        ],
+        "name": "computeRisk",
+        "outputs": [
+          {
+            "internalType": "uint16",
+            "name": "riskBps",
+            "type": "uint16"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "payment",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint8",
+            "name": "reproClass",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "assurance",
+            "type": "uint8"
+          }
+        ],
+        "name": "derivePolicy",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "uint8",
+                "name": "tier",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint16",
+                "name": "samplingBps",
+                "type": "uint16"
+              },
+              {
+                "internalType": "uint8",
+                "name": "verifierCount",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint8",
+                "name": "quorum",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "collateral",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint32",
+                "name": "challengeWindow",
+                "type": "uint32"
+              }
+            ],
+            "internalType": "struct VerificationPolicy.Policy",
+            "name": "policy",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint32",
+            "name": "seconds_",
+            "type": "uint32"
+          }
+        ],
+        "name": "setChallengeWindow",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint16",
+            "name": "k_",
+            "type": "uint16"
+          }
+        ],
+        "name": "setK",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint16",
+            "name": "bps",
+            "type": "uint16"
+          }
+        ],
+        "name": "setSlashBps",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint16",
+            "name": "bps",
+            "type": "uint16"
+          }
+        ],
+        "name": "setVerifierFeesBps",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint16",
+            "name": "bps",
+            "type": "uint16"
+          }
+        ],
+        "name": "setVerifierSlashBps",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint16",
+            "name": "w1_",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "w2_",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "w3_",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "w4_",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "w5_",
+            "type": "uint16"
+          }
+        ],
+        "name": "setWeights",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "slashBps",
+        "outputs": [
+          {
+            "internalType": "uint16",
+            "name": "",
+            "type": "uint16"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "verifierFeesBps",
+        "outputs": [
+          {
+            "internalType": "uint16",
+            "name": "",
+            "type": "uint16"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "verifierSlashBps",
+        "outputs": [
+          {
+            "internalType": "uint16",
+            "name": "",
+            "type": "uint16"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ]
+  },
+  "JobEscrow": {
+    "address": "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0",
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "providerRegistry_",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "verificationPolicy_",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [],
+        "name": "ECDSAInvalidSignature",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "length",
+            "type": "uint256"
+          }
+        ],
+        "name": "ECDSAInvalidSignatureLength",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "name": "ECDSAInvalidSignatureS",
+        "type": "error"
+      },
+      {
+        "inputs": [],
+        "name": "InvalidShortString",
+        "type": "error"
+      },
+      {
+        "inputs": [],
+        "name": "MathOverflowedMulDiv",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnableInvalidOwner",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "OwnableUnauthorizedAccount",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "string",
+            "name": "str",
+            "type": "string"
+          }
+        ],
+        "name": "StringTooLong",
+        "type": "error"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "verifier",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint8",
+            "name": "verdict",
+            "type": "uint8"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "evidenceHash",
+            "type": "bytes32"
+          }
+        ],
+        "name": "AttestationSubmitted",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint8",
+            "name": "outcome",
+            "type": "uint8"
+          }
+        ],
+        "name": "DisputeResolved",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [],
+        "name": "EIP712DomainChanged",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "address",
+            "name": "challenger",
+            "type": "address"
+          }
+        ],
+        "name": "JobDisputed",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "requester",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "string",
+            "name": "specCid",
+            "type": "string"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "profileHash",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "payment",
+            "type": "uint256"
+          }
+        ],
+        "name": "JobRegistered",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint8",
+            "name": "outcome",
+            "type": "uint8"
+          }
+        ],
+        "name": "JobSettled",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "previousOwner",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "policyHash",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint8",
+            "name": "tier",
+            "type": "uint8"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint16",
+            "name": "samplingBps",
+            "type": "uint16"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "collateral",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint32",
+            "name": "challengeWindow",
+            "type": "uint32"
+          }
+        ],
+        "name": "PolicyRecorded",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          }
+        ],
+        "name": "ProviderAssigned",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "policyHash",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "resultHash",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "attestationRoot",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint8",
+            "name": "tier",
+            "type": "uint8"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint8",
+            "name": "outcome",
+            "type": "uint8"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint64",
+            "name": "settledAt",
+            "type": "uint64"
+          }
+        ],
+        "name": "ReceiptIssued",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "resultHash",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "bytes32",
+            "name": "checkpointRoot",
+            "type": "bytes32"
+          },
+          {
+            "indexed": false,
+            "internalType": "string",
+            "name": "resultCid",
+            "type": "string"
+          }
+        ],
+        "name": "ResultCommitted",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "address",
+            "name": "claimedBy",
+            "type": "address"
+          }
+        ],
+        "name": "TimeoutClaimed",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "address[]",
+            "name": "verifiers",
+            "type": "address[]"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint64",
+            "name": "verifyDeadline",
+            "type": "uint64"
+          }
+        ],
+        "name": "VerifiersSelected",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          }
+        ],
+        "name": "assignProvider",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "challenge",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "claimTimeout",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "resultHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "checkpointRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "string",
+            "name": "resultCid",
+            "type": "string"
+          }
+        ],
+        "name": "commitResult",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "eip712Domain",
+        "outputs": [
+          {
+            "internalType": "bytes1",
+            "name": "fields",
+            "type": "bytes1"
+          },
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "version",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "chainId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "verifyingContract",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "salt",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "extensions",
+            "type": "uint256[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "index",
+            "type": "uint256"
+          }
+        ],
+        "name": "getAttestation",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "verifier",
+            "type": "address"
+          },
+          {
+            "internalType": "uint8",
+            "name": "verdict",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "evidenceHash",
+            "type": "bytes32"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "getJob",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "requester",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "provider",
+                "type": "address"
+              },
+              {
+                "internalType": "string",
+                "name": "specCid",
+                "type": "string"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "profileHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "uint8",
+                "name": "reproClass",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint8",
+                "name": "assurance",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint64",
+                "name": "deadline",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint256",
+                "name": "payment",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint8",
+                "name": "state",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "policyHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "resultHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "checkpointRoot",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "string",
+                "name": "resultCid",
+                "type": "string"
+              },
+              {
+                "internalType": "uint64",
+                "name": "commitBlock",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint8",
+                "name": "outcome",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint64",
+                "name": "verifyDeadline",
+                "type": "uint64"
+              }
+            ],
+            "internalType": "struct JobEscrow.JobRecord",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "getPolicy",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "uint8",
+                "name": "tier",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint16",
+                "name": "samplingBps",
+                "type": "uint16"
+              },
+              {
+                "internalType": "uint8",
+                "name": "verifierCount",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint8",
+                "name": "quorum",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "collateral",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint32",
+                "name": "challengeWindow",
+                "type": "uint32"
+              }
+            ],
+            "internalType": "struct VerificationPolicy.Policy",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "getReceipt",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "jobId",
+                "type": "uint256"
+              },
+              {
+                "internalType": "string",
+                "name": "specCid",
+                "type": "string"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "policyHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "address",
+                "name": "provider",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "requester",
+                "type": "address"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "resultHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "attestationRoot",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "uint8",
+                "name": "tier",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint8",
+                "name": "outcome",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint64",
+                "name": "settledAt",
+                "type": "uint64"
+              }
+            ],
+            "internalType": "struct JobEscrow.ReceiptRecord",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "string",
+            "name": "specCid",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "profileHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint8",
+            "name": "reproClass",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "assurance",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint64",
+            "name": "deadline",
+            "type": "uint64"
+          }
+        ],
+        "name": "registerJob",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "outcome",
+            "type": "uint8"
+          }
+        ],
+        "name": "resolveDispute",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "selectVerifiers",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "selectedVerifiers",
+        "outputs": [
+          {
+            "internalType": "address[]",
+            "name": "",
+            "type": "address[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          }
+        ],
+        "name": "settle",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "jobId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "verdict",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "evidenceHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signature",
+            "type": "bytes"
+          }
+        ],
+        "name": "submitAttestation",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ]
+  }
+}

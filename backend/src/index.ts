@@ -2,29 +2,31 @@
  * index.ts — Express application entry point.
  *
  * Startup order:
- *   1. dotenv loads .env  (must be first so config.ts sees the vars)
- *   2. runMigrations()    opens sql.js, applies schema.sql, persists data/poc.db
+ *   1. dotenv loads .env
+ *   2. runMigrations() — creates all 13 SQLite tables
  *   3. Express registers all routes
  *   4. Server starts listening on PORT
- *   5. (Phase E) indexer start will be added here
+ *   5. startIndexer() — begins polling the chain for events
  */
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import { PORT } from './config';
 import { runMigrations } from './db/migrate';
 
-// ── Phase A ──────────────────────────────────────────────────────────────
+// Phase A
 import healthRouter from './routes/health';
-// ── Phase B ──────────────────────────────────────────────────────────────
+// Phase B
 import ipfsRouter from './routes/ipfs';
-// ── Phase C ──────────────────────────────────────────────────────────────
+// Phase C
 import providersRouter from './routes/providers';
 import matchRouter from './routes/match';
-// ── Phase D ──────────────────────────────────────────────────────────────
+// Phase D
 import jobsRouter from './routes/jobs';
 import receiptsRouter from './routes/receipts';
 import verifiersRouter from './routes/verifiers';
 import statsRouter from './routes/stats';
+// Phase E
+import { startIndexer } from './indexer/indexer';
 
 const app = express();
 
@@ -55,14 +57,19 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 // ─── Async startup ────────────────────────────────────────────────────────
 async function start(): Promise<void> {
+  // 1. Apply DB schema
   await runMigrations();
 
+  // 2. Start HTTP server
   app.listen(PORT, () => {
     console.log(`[server] Proof-of-Compute backend → http://localhost:${PORT}`);
     console.log(`[server] NODE_ENV = ${process.env.NODE_ENV ?? 'development'}`);
     console.log(`[server] DB       = ${process.env.DATABASE_PATH ?? './data/poc.db'}`);
     console.log(`[server] RPC      = ${process.env.RPC_URL ?? '(not set)'}`);
   });
+
+  // 3. Start event indexer (non-blocking — runs alongside the HTTP server)
+  await startIndexer();
 }
 
 start().catch((err: Error) => {
