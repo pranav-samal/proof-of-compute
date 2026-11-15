@@ -1,0 +1,63 @@
+{
+  "chainId": 31337,
+  "network": "localhost",
+  "contracts": {
+    "ProviderRegistry": {
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "abi": [
+        "event StakeDeposited(address indexed provider, uint256 amount)",
+        "event StakeWithdrawn(address indexed provider, uint256 amount)",
+        "event VerifierRegistered(address indexed verifier, uint256 bond)",
+        "event ProviderSlashed(address indexed provider, uint256 amount, address recipient)",
+        "event VerifierSlashed(address indexed verifier, uint256 amount)",
+        "event ReputationUpdated(address indexed provider, uint16 reputationBps)",
+        "function registerProvider(bytes32 capabilityHash) external",
+        "function depositStake() external payable",
+        "function withdrawStake(uint256 amount) external",
+        "function freeStake(address provider) external view returns (uint256)",
+        "function totalStake(address provider) external view returns (uint256)",
+        "function registerVerifier() external payable",
+        "function withdrawBond(uint256 amount) external",
+        "function verifierBond(address verifier) external view returns (uint256)",
+        "function verifierCount() external view returns (uint256)",
+        "function verifierAt(uint256 index) external view returns (address)",
+        "function isEligibleVerifier(address v) external view returns (bool)",
+        "function reputationBps(address provider) external view returns (uint16)",
+        "function lockStake(address provider, uint256 amount) external",
+        "function unlockStake(address provider, uint256 amount) external",
+        "function slash(address provider, uint256 amount, address recipient) external",
+        "function slashBond(address verifier, uint256 amount) external",
+        "function recordOutcome(address provider, uint8 outcome) external"
+      ]
+    },
+    "JobEscrow": {
+      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "abi": [
+        "event JobRegistered(uint256 indexed jobId, address indexed requester, string specCid, bytes32 profileHash, uint256 payment)",
+        "event ProviderAssigned(uint256 indexed jobId, address indexed provider)",
+        "event PolicyRecorded(uint256 indexed jobId, bytes32 policyHash, uint8 tier, uint16 samplingBps, uint256 collateral, uint32 challengeWindow)",
+        "event ResultCommitted(uint256 indexed jobId, bytes32 resultHash, bytes32 checkpointRoot, string resultCid)",
+        "event VerifiersSelected(uint256 indexed jobId, address[] verifiers, uint64 verifyDeadline)",
+        "event AttestationSubmitted(uint256 indexed jobId, address indexed verifier, uint8 verdict, bytes32 evidenceHash)",
+        "event JobSettled(uint256 indexed jobId, uint8 outcome)",
+        "event JobDisputed(uint256 indexed jobId, address challenger)",
+        "event DisputeResolved(uint256 indexed jobId, uint8 outcome)",
+        "event TimeoutClaimed(uint256 indexed jobId, address claimedBy)",
+        "event ReceiptIssued(uint256 indexed jobId, bytes32 policyHash, bytes32 resultHash, bytes32 attestationRoot, uint8 tier, uint8 outcome, uint64 settledAt)",
+        "function registerJob(string calldata specCid, bytes32 profileHash, uint8 reproClass, uint8 assurance, uint64 deadline) external payable returns (uint256 jobId)",
+        "function assignProvider(uint256 jobId, address provider) external",
+        "function commitResult(uint256 jobId, bytes32 resultHash, bytes32 checkpointRoot, string calldata resultCid) external",
+        "function selectVerifiers(uint256 jobId) external",
+        "function submitAttestation(uint256 jobId, uint8 verdict, bytes32 evidenceHash, bytes calldata signature) external",
+        "function settle(uint256 jobId) external",
+        "function claimTimeout(uint256 jobId) external",
+        "function resolveDispute(uint256 jobId, uint8 outcome) external",
+        "function getJob(uint256 jobId) external view returns (tuple(address requester, address provider, string specCid, bytes32 profileHash, uint8 reproClass, uint8 assurance, uint64 deadline, uint256 payment, uint8 state, bytes32 policyHash, bytes32 resultHash, bytes32 checkpointRoot, string resultCid, uint64 commitBlock, uint8 outcome, uint64 verifyDeadline))",
+        "function getPolicy(uint256 jobId) external view returns (tuple(uint8 tier, uint16 samplingBps, uint8 verifierCount, uint8 quorum, uint256 collateral, uint32 challengeWindow))",
+        "function getReceipt(uint256 jobId) external view returns (tuple(uint256 jobId, string specCid, bytes32 policyHash, address provider, address requester, bytes32 resultHash, bytes32 attestationRoot, uint8 tier, uint8 outcome, uint64 settledAt))",
+        "function getAttestation(uint256 jobId, uint256 index) external view returns (address verifier, uint8 verdict, bytes32 evidenceHash)",
+        "function selectedVerifiers(uint256 jobId) external view returns (address[])"
+      ]
+    }
+  }
+}
