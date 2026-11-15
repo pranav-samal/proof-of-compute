@@ -1,0 +1,170 @@
+[
+  {
+    "cheatingProb": 0.0,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.0,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.05,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.01,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.1,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.022,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.15,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.035,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.2,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.036,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.25,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.04,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.3,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.052,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.35,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.065,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.4,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.075,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.45,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.09,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.5,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.095,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.55,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.106,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.6,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.107,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.65,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.112,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.7,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.119,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.75,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.138,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.8,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.158,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.85,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.155,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.9,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.168,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 0.95,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.19,
+    "falsePositiveRate": 0.0
+  },
+  {
+    "cheatingProb": 1.0,
+    "alwaysReExecuteCost": 2.0,
+    "fixedSamplingCost": 1.1,
+    "riskAdaptiveCost": 1.2,
+    "detectionRate": 0.19,
+    "falsePositiveRate": 0.0
+  }
+]

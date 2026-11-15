@@ -1,0 +1,11 @@
+{
+  "nJobs": 1000,
+  "cheatingProbSteps": 21,
+  "stakeEth": 10.0,
+  "paymentEth": 1.0,
+  "K": 2,
+  "weights": [3000, 2000, 1500, 1500, 2000],
+  "tierThresholds": [2500, 5000, 7500],
+  "verifierFeesBps": 200,
+  "slashBps": 5000
+}

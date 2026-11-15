@@ -14,7 +14,7 @@ import { Card, CardHeader, CardSection } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { FormField, Input } from '../components/ui/FormField';
 import { api } from '../services/api';
-import { chain } from '../services/chain';
+import { chain, parseEther } from '../services/chain';
 import { WORKLOAD_LABELS } from '../data/constants';
 import { formatUsd, formatDate, cn } from '../lib/utils';
 import type { Provider, Job } from '../types';
@@ -133,14 +133,15 @@ function StakeTab({ p }: { p: Provider }) {
   async function handleDeposit() {
     const amt = parseFloat(depositAmt);
     if (isNaN(amt) || amt <= 0) return;
-    const tx = await chain.depositStake(amt);
-    setTxResult(`Deposit tx (mock): ${tx}`);
+    // Convert ETH float → wei bigint for the real adapter
+    const tx = await chain.depositStake(parseEther(String(amt)));
+    setTxResult(`Deposit tx: ${tx}`);
   }
   async function handleWithdraw() {
     const amt = parseFloat(withdrawAmt);
     if (isNaN(amt) || amt <= 0 || amt > freeStake) return;
-    const tx = await chain.withdrawStake(amt);
-    setTxResult(`Withdraw tx (mock): ${tx}`);
+    const tx = await chain.withdrawStake(parseEther(String(amt)));
+    setTxResult(`Withdraw tx: ${tx}`);
   }
 
   return (
@@ -223,8 +224,16 @@ function CommitTab({ jobs }: { jobs: Job[] }) {
 
   async function handleCommit() {
     if (!selectedJobId || !resultHash.trim()) return;
-    const tx = await chain.commitResult(selectedJobId, resultHash.trim());
-    setTxResult(`Commit tx (mock): ${tx}`);
+    // commitResult needs: jobId, resultHash, checkpointRoot, resultCid
+    // For the UI we don't have checkpointRoot / resultCid — use placeholders
+    // so the type signature is satisfied; the real agent supplies these values.
+    const tx = await chain.commitResult(
+      selectedJobId,
+      resultHash.trim(),
+      '0x' + '0'.repeat(64),   // checkpointRoot placeholder
+      '',                       // resultCid placeholder
+    );
+    setTxResult(`Commit tx: ${tx}`);
   }
 
   return (
