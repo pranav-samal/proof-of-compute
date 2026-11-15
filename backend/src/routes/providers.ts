@@ -1,0 +1,200 @@
+/**
+ * Provider routes — SPEC.md §8.2, §8.3, §8.4
+ *
+ * GET  /providers
+ * GET  /providers/:address
+ * PUT  /providers/:address/profile
+ * POST /jobs/spec
+ */
+import { Router, Request, Response } from 'express';
+import { ethers } from 'ethers';
+import crypto from 'crypto';
+import db from '../db/db';
+import { pinJson } from '../ipfs/pin';
+import { ipfsConfigured } from '../config';
+import { notFound, badRequest, serverError } from '../lib/errors';
+
+const router = Router();
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+interface ProviderRow {
+  address: string;
+  capability_hash: string;
+  stake_wei: string;
+  locked_wei: string;
+  reputation_bps: number;
+  slash_count: number;
+  verified_jobs: number;
+  last_seen_block: number;
+}
+
+interface ProfileRow {
+  address: string;
+  profile_json: string;
+  profile_cid: string;
+  profile_hash: string;
+  updated_at: string;
+}
+
+function formatProvider(p: ProviderRow, profile: ProfileRow | undefined) {
+  return {
+    address: p.address,
+    capabilityHash: p.capability_hash,
+    stakeWei: p.stake_wei,
+    lockedStakeWei: p.locked_wei,
+    reputationBps: p.reputation_bps,
+    slashCount: p.slash_count,
+    verifiedJobCount: p.verified_jobs,
+    profile: profile ? JSON.parse(profile.profile_json) : null,
+    profileCid: profile?.profile_cid ?? null,
+    profileHash: profile?.profile_hash ?? null,
+  };
+}
+
+// ─── GET /providers ───────────────────────────────────────────────────────
+
+router.get('/providers', (req: Request, res: Response) => {
+  const {
+    gpu, minVram, maxPrice, minStake, minReputation, available, sort,
+  } = req.query as Record<string, string | undefined>;
+
+  // Build query dynamically
+  let sql = `
+    SELECT p.*, pp.profile_json, pp.profile_cid, pp.profile_hash
+    FROM providers p
+    LEFT JOIN provider_profiles pp ON pp.address = p.address
+    WHERE 1=1
+  `;
+  const params: Record<string, unknown> = {};
+
+  if (minStake) {
+    // Compare as numbers — stake_wei stored as text so CAST needed
+    params.minStake = minStake;
+    sql += ' AND CAST(p.stake_wei AS INTEGER) >= CAST(:minStake AS INTEGER)';
+  }
+  if (minReputation) {
+    params.minReputation = parseInt(minReputation, 10);
+    sql += ' AND p.reputation_bps >= :minReputation';
+  }
+
+  // GPU and availability filters require checking profile JSON
+  // (profile is stored as a JSON blob — SQLite json_extract is available)
+  if (gpu) {
+    params.gpu = `%${gpu}%`;
+    sql += ` AND json_extract(pp.profile_json, '$.gpu.model') LIKE :gpu`;
+  }
+  if (minVram) {
+    params.minVram = parseInt(minVram, 10);
+    sql += ` AND CAST(json_extract(pp.profile_json, '$.gpu.vramGb') AS INTEGER) >= :minVram`;
+  }
+  if (maxPrice) {
+    params.maxPrice = parseFloat(maxPrice);
+    sql += ` AND CAST(json_extract(pp.profile_json, '$.pricePerHour') AS REAL) <= :maxPrice`;
+  }
+  if (available === 'true') {
+    sql += ` AND json_extract(pp.profile_json, '$.availability') = 'available'`;
+  }
+
+  // Sort
+  switch (sort) {
+    case 'price': sql += ` ORDER BY CAST(json_extract(pp.profile_json, '$.pricePerHour') AS REAL) ASC`; break;
+    case 'reputation': sql += ' ORDER BY p.reputation_bps DESC'; break;
+    case 'stake': sql += ' ORDER BY CAST(p.stake_wei AS INTEGER) DESC'; break;
+    case 'rating': sql += ` ORDER BY CAST(json_extract(pp.profile_json, '$.rating') AS REAL) DESC`; break;
+    default: sql += ' ORDER BY p.reputation_bps DESC';
+  }
+
+  const rows = db.all<ProviderRow & Partial<ProfileRow>>(sql, params);
+
+  const providers = rows.map((r) => {
+    const profilePart: ProfileRow | undefined = r.profile_json
+      ? { address: r.address, profile_json: r.profile_json, profile_cid: r.profile_cid ?? '', profile_hash: r.profile_hash ?? '', updated_at: '' }
+      : undefined;
+    return formatProvider(r as ProviderRow, profilePart);
+  });
+
+  return res.json({ providers });
+});
+
+// ─── GET /providers/:address ──────────────────────────────────────────────
+
+router.get('/providers/:address', (req: Request, res: Response) => {
+  const { address } = req.params;
+
+  const provider = db.get<ProviderRow>(
+    'SELECT * FROM providers WHERE address = :address',
+    { address }
+  );
+  if (!provider) return notFound(res, `No provider with address ${address}`);
+
+  const profile = db.get<ProfileRow>(
+    'SELECT * FROM provider_profiles WHERE address = :address',
+    { address }
+  );
+
+  return res.json(formatProvider(provider, profile));
+});
+
+// ─── PUT /providers/:address/profile ─────────────────────────────────────
+// Updates off-chain display profile. Requires EIP-191 signed message.
+
+router.put('/providers/:address/profile', async (req: Request, res: Response) => {
+  const { address } = req.params;
+  const { profile, signature } = req.body as { profile?: unknown; signature?: string };
+
+  if (!profile || !signature) {
+    return badRequest(res, 'profile and signature are required');
+  }
+
+  // EIP-191 signature verification — signer must match :address
+  try {
+    const message = JSON.stringify(profile);
+    const recovered = ethers.verifyMessage(message, signature);
+    if (recovered.toLowerCase() !== address.toLowerCase()) {
+      return res.status(400).json({
+        error: { code: 'INVALID_SIGNATURE', message: 'Signature does not match address' },
+      });
+    }
+  } catch {
+    return res.status(400).json({
+      error: { code: 'INVALID_SIGNATURE', message: 'Could not recover signer from signature' },
+    });
+  }
+
+  // Ensure provider row exists (upsert)
+  db.run(
+    `INSERT OR IGNORE INTO providers (address, capability_hash) VALUES (:address, '0x')`,
+    { address }
+  );
+
+  // Pin to IPFS if configured; otherwise store without CID
+  let profileCid = '';
+  let profileHash = '';
+
+  if (ipfsConfigured()) {
+    try {
+      const { cid, contentHash } = await pinJson(profile, `profile-${address}`);
+      profileCid = cid;
+      profileHash = `0x${contentHash}`;
+    } catch (err) {
+      return serverError(res, `IPFS pin failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  } else {
+    // Compute hash locally when IPFS not configured
+    profileHash = `0x${crypto.createHash('sha256').update(JSON.stringify(profile)).digest('hex')}`;
+  }
+
+  const now = new Date().toISOString();
+  db.run(
+    `INSERT OR REPLACE INTO provider_profiles
+       (address, profile_json, profile_cid, profile_hash, updated_at)
+     VALUES (:address, :profile_json, :profile_cid, :profile_hash, :now)`,
+    { address, profile_json: JSON.stringify(profile), profile_cid: profileCid, profile_hash: profileHash, now }
+  );
+  db.persist();
+
+  return res.json({ profileCid, profileHash });
+});
+
+export default router;
