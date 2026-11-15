@@ -1,0 +1,24 @@
+# Verifier service Docker image
+# Build: docker build -f Dockerfile.verifier -t poc-verifier:latest .
+# Run:   docker run --env-file .env poc-verifier:latest
+
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install dependencies first (cached layer)
+COPY package.json ./
+RUN npm install --omit=dev
+
+# Copy TypeScript source and build config
+COPY tsconfig.json ./
+COPY shared/ ./shared/
+COPY jobs/ ./jobs/
+COPY verifier/ ./verifier/
+
+# Install dev deps for build then prune
+RUN npm install && npx tsc && npm prune --omit=dev
+
+ENV NODE_ENV=production
+
+CMD ["node", "dist/verifier/index.js"]

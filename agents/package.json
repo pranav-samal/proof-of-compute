@@ -1,0 +1,25 @@
+{
+  "name": "proof-of-compute-agents",
+  "version": "1.0.0",
+  "description": "Provider agent and verifier service for Proof-of-Compute",
+  "type": "module",
+  "scripts": {
+    "provider": "node --loader ts-node/esm provider/index.ts",
+    "verifier": "node --loader ts-node/esm verifier/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc",
+    "build:provider": "tsc && node dist/provider/index.js",
+    "build:verifier": "tsc && node dist/verifier/index.js"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "nodemon": "^3.1.0",
+    "vitest": "^2.1.0"
+  }
+}
