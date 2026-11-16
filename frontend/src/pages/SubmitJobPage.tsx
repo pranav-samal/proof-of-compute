@@ -512,35 +512,56 @@ export function SubmitJobPage() {
     setTxError(null);
     setSigning(true);
     try {
-      // 1. Pin spec to IPFS via backend
+      // 1. Build a valid spec — backend only accepts 'sha-chain' or 'matmul'
+      //    Map frontend workload types to supported backend types
+      const backendType = (
+        values.workloadType === 'training' || values.workloadType === 'general-compute'
+          ? 'sha-chain'
+          : 'matmul'
+      );
+
       const specPayload = {
-        type: values.workloadType,
-        params: { description: values.description, gpuModel: values.gpuModel },
+        type: backendType,
+        params: backendType === 'sha-chain'
+          ? { seed: '0x' + '0'.repeat(64), iterations: 1000, checkpointEvery: 100 }
+          : { seedA: '0x' + '0'.repeat(64), seedB: '0x' + '1'.repeat(64), size: 64, precision: 'float64' },
         image: 'poc-runner:latest',
         resources: { cpuCores: 2, memoryMb: 4096, timeLimitSecs: 3600 },
       };
-      const { cid, profileHash } = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001'}/jobs/spec`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(specPayload) }
-      ).then((r) => r.json()) as { cid: string; profileHash: string };
 
-      // 2. Convert budget to wei (1 ETH = 1e18 wei; use budget in ETH for demo)
-      const paymentWei = BigInt(Math.round(values.budgetUsd * 1e14)); // $20 ≈ 0.002 ETH at demo price
+      // 2. Pin spec to IPFS via backend
+      const backendUrl = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
+      const specRes = await fetch(`${backendUrl}/jobs/spec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(specPayload),
+      });
 
-      // 3. Deadline = now + 2 hours
+      const specData = await specRes.json() as { cid?: string; profileHash?: string; error?: { message: string } };
+
+      if (!specRes.ok || !specData.cid || !specData.profileHash) {
+        throw new Error(specData.error?.message ?? `Backend error ${specRes.status}: could not pin spec`);
+      }
+
+      const { cid, profileHash } = specData;
+
+      // 3. Convert budget to wei (1 ETH = 1e18 wei; $1 ≈ 0.000005 ETH at demo rate)
+      const paymentWei = BigInt(Math.round(values.budgetUsd * 5e12));
+
+      // 4. Deadline = now + 2 hours
       const deadlineTs = Math.floor(Date.now() / 1000) + 7200;
 
-      // 4. Repro class mapping
-      const reproMap = { D: 0, T: 1, N: 2 };
-      const reproClass = reproMap[values.reproducibilityClass];
+      // 5. Repro class mapping  D→0, T→1, N→2
+      const reproMap: Record<string, number> = { D: 0, T: 1, N: 2 };
+      const reproClass = reproMap[values.reproducibilityClass] ?? 0;
 
-      // 5. Assurance mapping
-      const assuranceMap = { low: 0, medium: 1, high: 2, maximum: 3 };
-      const assurance = assuranceMap[values.assuranceLevel];
+      // 6. Assurance mapping  low→0, medium→1, high→2, maximum→3
+      const assuranceMap: Record<string, number> = { low: 0, medium: 1, high: 2, maximum: 3 };
+      const assurance = assuranceMap[values.assuranceLevel] ?? 1;
 
-      // 6. Call contract via chain.ts real adapter
+      // 7. Call contract via chain.ts real adapter — opens MetaMask
       const { txHash, jobId } = await chain.registerJobOnChain(
-        cid, profileHash, reproClass, assurance, deadlineTs, paymentWei
+        cid, profileHash, reproClass, assurance, deadlineTs, paymentWei,
       );
 
       setSubmitted(true);
