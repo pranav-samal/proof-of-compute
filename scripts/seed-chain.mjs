@@ -11,10 +11,9 @@
  *   #4  0x15d34AAf… — IronBridge Compute — NVIDIA H100 PCIe  10 ETH stake
  *   #5  0x9965507D… — StormCloud GPU     — NVIDIA RTX 4080    2 ETH stake
  *
- * Verifiers registered (Hardhat accounts #6–#8):
- *   #6  0x976EA74… — 2 ETH bond
- *   #7  0x14dC79e… — 1.5 ETH bond
- *   #8  0x23618e4… — 3 ETH bond
+ * Verifiers registered (Hardhat accounts #7 and #0):
+ *   #7   0x14dC79… — 2 ETH bond
+ *   #0   0xf39Fd6… — 1.5 ETH bond (the deployer also acts as verifier2 in the E2E demo)
  *
  * Env vars required: PROVIDER_REGISTRY_ADDRESS, RPC_URL, BACKEND_URL
  */
@@ -26,9 +25,9 @@ import { fileURLToPath } from 'url';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const C = (...p) => join(ROOT, ...p);
 
-const RPC_URL             = process.env.RPC_URL             ?? 'http://127.0.0.1:8545';
-const REGISTRY_ADDRESS    = process.env.PROVIDER_REGISTRY_ADDRESS;
-const BACKEND_URL         = process.env.BACKEND_URL         ?? 'http://localhost:3001';
+const RPC_URL = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
+const REGISTRY_ADDRESS = process.env.PROVIDER_REGISTRY_ADDRESS;
+const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:3001';
 
 if (!REGISTRY_ADDRESS) {
   console.error('[seed] PROVIDER_REGISTRY_ADDRESS is required');
@@ -41,10 +40,11 @@ const REGISTRY_ABI = [
   'function depositStake() external payable',
   'function registerVerifier() external payable',
   'function totalStake(address provider) external view returns (uint256)',
+  'function freeStake(address provider) external view returns (uint256)',
   'function verifierBond(address verifier) external view returns (uint256)',
 ];
 
-// Hardhat deterministic private keys (accounts #0–#8)
+// Hardhat deterministic private keys (accounts #0–#9, all 64 hex chars without 0x)
 const HARDHAT_KEYS = [
   'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', // #0 deployer
   '59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d', // #1
@@ -52,9 +52,13 @@ const HARDHAT_KEYS = [
   '7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6', // #3
   '47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a', // #4
   '8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba', // #5
-  '92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564', // #6
-  '4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356', // #7
-  'dbda1821b80551c9d65939329250132c0de68a8df4c26568cc54d4f26bc88cad', // #8
+  // NOTE: Hardhat's #6 key is invalid (63 hex chars) and is intentionally omitted
+  // here, which makes every index after #5 shift by one: index 6 = account #7,
+  // index 7 = account #8 (0 ETH — do NOT use), index 8 = account #9. The VERIFIERS
+  // array below uses explicit keys to sidestep this off-by-one entirely.
+  '4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356', // index 6 = Hardhat #7 → 0x14dC79964d…  (funded)
+  'dbda1821b80551c9d65939329250132c0de68a8df4c26568cc54d4f26bc88cad', // index 7 = Hardhat #8 → 0xbDDc9a931E… (0 ETH — unused)
+  '2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6', // index 8 = Hardhat #9 → 0xa0Ee7A142d…  (funded)
 ];
 
 const PROVIDERS = [
@@ -130,10 +134,12 @@ const PROVIDERS = [
   },
 ];
 
+// Verifiers use explicit private keys (not HARDHAT_KEYS indices) because the
+// invalid #6 key was omitted from that array, which shifts every later index by
+// one. #7 and #0 (the deployer) are both funded Hardhat accounts.
 const VERIFIERS = [
-  { key: HARDHAT_KEYS[6], bondEth: '2' },
-  { key: HARDHAT_KEYS[7], bondEth: '1.5' },
-  { key: HARDHAT_KEYS[8], bondEth: '3' },
+  { key: '4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356', bondEth: '2' },   // Hardhat #7 → 0x14dC79964d…
+  { key: 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', bondEth: '1.5' }, // Hardhat #0 (deployer) → 0xf39Fd6e51a… — also acts as verifier2 in the E2E demo
 ];
 
 async function pinProfileToBackend(profile, signerAddress, privateKey) {
@@ -163,25 +169,59 @@ async function main() {
   // ── Register providers ───────────────────────────────────────────────
 
   for (const p of PROVIDERS) {
-    const wallet = new ethers.Wallet(p.key, provider);
+    // Create fresh wallet each iteration so nonce is fetched from chain
+    const wallet = new ethers.Wallet(p.key.replace('0x', ''), provider);
     const registry = new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, wallet);
     const addr = wallet.address;
 
-    // Idempotency check
+    // Idempotency: check stake to decide what still needs to happen
     const existingStake = await registry.totalStake(addr);
-    if (existingStake > 0n) {
-      console.log(`[seed] ✓ Provider ${p.profile.name} (${addr}) already registered (stake=${ethers.formatEther(existingStake)} ETH)`);
-    } else {
-      // registerProvider with a capability hash derived from profile
-      const capHash = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(p.profile.gpu)));
-      let tx = await registry.registerProvider(capHash);
-      await tx.wait();
-      console.log(`[seed] registerProvider ${p.profile.name} ✓`);
 
-      // depositStake
-      tx = await registry.depositStake({ value: ethers.parseEther(p.stakeEth) });
-      await tx.wait();
-      console.log(`[seed] depositStake ${p.stakeEth} ETH for ${p.profile.name} ✓`);
+    if (existingStake === 0n) {
+      // Check if already registered (freeStake > 0 would mean registered but not deposited yet)
+      // Try depositStake first; if it reverts, then try registerProvider + depositStake
+      const freeStk = await registry.freeStake(addr);
+
+      if (freeStk === 0n) {
+        // Check on-chain if provider record exists by calling freeStake result
+        // If freeStake returns 0 AND totalStake is 0, we need to check registration status
+        // Use a try/catch on depositStake to determine if registered
+        let registered = false;
+        try {
+          // Test registration by calling depositStake with 0 value as a staticCall
+          // If it doesn't revert with "not registered" but reverts with "value required", they're registered
+          await registry.depositStake.staticCall({ value: 0n });
+        } catch (e) {
+          // If error is about value being 0, they ARE registered
+          // If error is about not being registered, they're NOT registered
+          registered = !e.message?.toLowerCase().includes('not registered') &&
+            !e.message?.toLowerCase().includes('register');
+        }
+
+        if (!registered) {
+          try {
+            const capHash = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(p.profile.gpu)));
+            const nonce = await provider.getTransactionCount(addr, 'pending');
+            const tx = await registry.registerProvider(capHash, { nonce });
+            await tx.wait();
+            console.log(`[seed] registerProvider ${p.profile.name} ✓`);
+          } catch (e) {
+            console.warn(`[seed] registerProvider: ${e.message?.slice(0, 80)}`);
+          }
+        }
+      }
+
+      // depositStake — always use pending nonce to avoid stale cache
+      try {
+        const nonce = await provider.getTransactionCount(addr, 'pending');
+        const tx = await registry.depositStake({ value: ethers.parseEther(p.stakeEth), nonce });
+        await tx.wait();
+        console.log(`[seed] depositStake ${p.stakeEth} ETH for ${p.profile.name} ✓`);
+      } catch (e) {
+        console.warn(`[seed] depositStake warning: ${e.message?.slice(0, 100)}`);
+      }
+    } else {
+      console.log(`[seed] ✓ Provider ${p.profile.name} (${addr}) already registered (stake=${ethers.formatEther(existingStake)} ETH)`);
     }
 
     // Always upsert the profile in the backend (idempotent)
@@ -194,20 +234,24 @@ async function main() {
   }
 
   // ── Register verifiers ──────────────────────────────────────────────
+  // Both verifier accounts (#7 and the deployer #0) are funded Hardhat
+  // accounts, so no top-up is needed. Idempotent: skipped if already bonded.
 
   for (const v of VERIFIERS) {
-    const wallet = new ethers.Wallet(v.key, provider);
+    const wallet = new ethers.Wallet(v.key.replace('0x', ''), provider);
     const registry = new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, wallet);
     const addr = wallet.address;
 
     const existingBond = await registry.verifierBond(addr);
     if (existingBond > 0n) {
       console.log(`[seed] ✓ Verifier ${addr} already registered (bond=${ethers.formatEther(existingBond)} ETH)`);
-    } else {
-      const tx = await registry.registerVerifier({ value: ethers.parseEther(v.bondEth) });
-      await tx.wait();
-      console.log(`[seed] registerVerifier ${addr} bond=${v.bondEth} ETH ✓`);
+      continue;
     }
+
+    const nonce = await provider.getTransactionCount(addr, 'pending');
+    const tx = await registry.registerVerifier({ value: ethers.parseEther(v.bondEth), nonce });
+    await tx.wait();
+    console.log(`[seed] registerVerifier ${addr} bond=${v.bondEth} ETH ✓`);
   }
 
   console.log('[seed] ✅ On-chain seed complete');

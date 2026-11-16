@@ -11,7 +11,7 @@
  */
 import { ethers } from 'ethers';
 import db from '../db/db';
-import { RPC_URL, CONFIRMATIONS, INDEXER_START_BLOCK } from '../config';
+import { RPC_URL, CONFIRMATIONS, INDEXER_START_BLOCK, INDEXER_AUTO_ADVANCE } from '../config';
 import { getJobEscrowAddress, getProviderRegistryAddress, loadDeployment } from './abis';
 import * as H from './handlers';
 
@@ -177,7 +177,9 @@ export async function startIndexer(): Promise<void> {
       }
 
       // ── Auto-advance: selectVerifiers and settle ──────────────────────
-      await autoAdvance(escrow, latestBlock);
+      if (INDEXER_AUTO_ADVANCE) {
+        await autoAdvance(escrow, latestBlock);
+      }
 
     } catch (err) {
       console.error('[indexer] Poll error:', err instanceof Error ? err.message : String(err));

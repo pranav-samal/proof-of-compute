@@ -38,6 +38,16 @@ export const CHAIN_ID = parseInt(require_env('CHAIN_ID'), 10);
 export const CONFIRMATIONS = parseInt(optional_env('CONFIRMATIONS', '2'), 10);
 export const INDEXER_START_BLOCK = parseInt(optional_env('INDEXER_START_BLOCK', '0'), 10);
 
+/**
+ * When false, the indexer indexes on-chain events but does NOT auto-advance
+ * jobs (no automatic selectVerifiers/settle). Set INDEXER_AUTO_ADVANCE=false
+ * in backend/.env for the E2E scripts so they drive the full flow themselves
+ * and print every transaction hash. Default "true" powers the UI demo, where
+ * the frontend has no manual selectVerifiers/settle buttons.
+ */
+export const INDEXER_AUTO_ADVANCE =
+  optional_env('INDEXER_AUTO_ADVANCE', 'true').toLowerCase() !== 'false';
+
 // ─── Contract addresses ───────────────────────────────────────────────────
 // These can be empty on first startup (before contracts are deployed).
 // The indexer will simply skip events if they are not set.
