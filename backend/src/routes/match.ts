@@ -34,30 +34,46 @@ function validateSpec(spec: unknown): string | null {
 // ─── POST /jobs/spec ──────────────────────────────────────────────────────
 
 router.post('/jobs/spec', async (req: Request, res: Response) => {
-  const spec = req.body;
+  const spec = req.body as Record<string, unknown>;
 
   const validationError = validateSpec(spec);
   if (validationError) {
     return badRequest(res, validationError, 'INVALID_SPEC');
   }
 
+  // Extract optional title for the spec_titles cache
+  const title = (typeof spec['title'] === 'string' && spec['title'].trim())
+    ? spec['title'].trim()
+    : `${String(spec['type'])} job`;
+
   // Compute profile hash (keccak256 equivalent: sha256 for off-chain)
   const specStr = JSON.stringify(spec);
   const profileHash = `0x${crypto.createHash('sha256').update(specStr).digest('hex')}`;
 
+  let cid: string;
+
   if (!ipfsConfigured()) {
-    // Return a deterministic pseudo-CID based on hash when IPFS not configured
-    // This allows development without a Pinata key
-    const pseudoCid = `bafylocal${profileHash.slice(2, 34)}`;
-    return res.status(201).json({ cid: pseudoCid, profileHash });
+    cid = `bafylocal${profileHash.slice(2, 34)}`;
+  } else {
+    try {
+      const pinResult = await pinJson(spec, 'job-spec');
+      cid = pinResult.cid;
+    } catch (err) {
+      return serverError(res, `IPFS pin failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
-  try {
-    const { cid, contentHash } = await pinJson(spec, 'job-spec');
-    return res.status(201).json({ cid, profileHash: `0x${contentHash}` });
-  } catch (err) {
-    return serverError(res, `IPFS pin failed: ${err instanceof Error ? err.message : String(err)}`);
+  // Cache the title so the jobs list can show it without an IPFS fetch
+  if (db.isOpen()) {
+    db.run(
+      `INSERT OR REPLACE INTO spec_titles (spec_cid, title, created_at)
+       VALUES (:cid, :title, :now)`,
+      { cid, title, now: new Date().toISOString() }
+    );
+    db.persist();
   }
+
+  return res.status(201).json({ cid, profileHash });
 });
 
 // ─── POST /jobs/match ─────────────────────────────────────────────────────
@@ -99,7 +115,7 @@ router.post('/jobs/match', (req: Request, res: Response) => {
 
       const gpu = profile['gpu'] as Record<string, unknown> | undefined;
       const vramGb = Number(gpu?.['vramGb'] ?? 0);
-      const ramGb  = Number(profile['ramGb'] ?? 0);
+      const ramGb = Number(profile['ramGb'] ?? 0);
       const pricePerHour = Number(profile['pricePerHour'] ?? 0);
       const availability = profile['availability'] as string;
       const frameworks = (profile['frameworks'] as string[] | undefined) ?? [];

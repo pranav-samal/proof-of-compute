@@ -1,0 +1,13 @@
+{
+  "name": "proof-of-compute-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proof-of-Compute — Decentralised GPU Marketplace (monorepo root)",
+  "scripts": {
+    "dev:all":       "node scripts/dev-all.mjs",
+    "seed:chain":    "node scripts/seed-chain.mjs",
+    "e2e:honest":    "node scripts/e2e-honest.mjs",
+    "e2e:malicious": "node scripts/e2e-malicious.mjs",
+    "stop":          "node scripts/stop-all.mjs"
+  }
+}

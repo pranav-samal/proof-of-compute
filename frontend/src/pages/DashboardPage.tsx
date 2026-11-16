@@ -16,36 +16,48 @@ import { formatUsd, formatDate } from '../lib/utils';
 import type { Job, DashboardMetrics } from '../types';
 import { cn } from '../lib/utils';
 
-// ─── Spending chart (pure CSS bar chart) ──────────────────────────────────
+// ─── Spending chart — computed from real jobs ──────────────────────────────
 
-const SPEND_DATA = [
-  { label: 'Oct 1', value: 112.00 },
-  { label: 'Oct 5', value: 17.80 },
-  { label: 'Oct 10', value: 0 },
-  { label: 'Oct 11', value: 0 },
-];
-const MAX_SPEND = Math.max(...SPEND_DATA.map((d) => d.value), 1);
+function SpendChart({ jobs }: { jobs: Job[] }) {
+  // Group by date, sum paymentWei (displayed as ETH)
+  const byDate: Record<string, number> = {};
+  for (const j of jobs) {
+    const day = j.createdAt ? j.createdAt.split('T')[0] : '';
+    if (!day) continue;
+    const eth = j.config.budgetUsd; // budgetUsd maps to paymentWei in ETH equivalent
+    byDate[day] = (byDate[day] ?? 0) + eth;
+  }
+  const entries = Object.entries(byDate)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([label, value]) => ({ label: label.slice(5), value }));
 
-function SpendChart() {
+  const maxVal = Math.max(...entries.map((d) => d.value), 1);
+
+  if (entries.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-card p-5 flex items-center justify-center min-h-[160px]">
+        <p className="text-sm text-gray-400 italic">No spend data yet</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-base font-semibold text-gray-900">Job Spend</h3>
-          <p className="text-xs text-gray-400 italic">Illustrative data — not real transactions.</p>
-        </div>
-        <span className="text-xs font-medium text-gray-500">October 2026</span>
+        <h3 className="text-base font-semibold text-gray-900">Job Payments</h3>
+        <span className="text-xs font-medium text-gray-500">ETH equivalent</span>
       </div>
       <div className="flex items-end gap-3 h-32">
-        {SPEND_DATA.map((d) => (
+        {entries.map((d) => (
           <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
             <span className="text-xs font-medium text-brand-800">
-              {d.value > 0 ? formatUsd(d.value, 0) : ''}
+              {d.value > 0 ? d.value.toFixed(4) : ''}
             </span>
             <div
               className="w-full rounded-t-md bg-accent-200 hover:bg-accent-400 transition-colors cursor-default"
-              style={{ height: `${Math.max((d.value / MAX_SPEND) * 100, d.value > 0 ? 4 : 1)}%` }}
-              title={`${d.label}: ${formatUsd(d.value)}`}
+              style={{ height: `${Math.max((d.value / maxVal) * 100, d.value > 0 ? 4 : 1)}%` }}
+              title={`${d.label}: ${d.value.toFixed(4)} ETH`}
             />
             <span className="text-xs text-gray-400">{d.label}</span>
           </div>
@@ -63,7 +75,6 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <h3 className="text-base font-semibold text-brand-900">Recent Jobs</h3>
-          <DemoBadge />
         </div>
         <Link to="/jobs" className="text-xs font-medium text-accent-600 hover:text-brand-800 flex items-center gap-1">
           View all <ArrowRight className="w-3 h-3" />
@@ -179,8 +190,8 @@ export function DashboardPage() {
         }
       />
 
-      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-5 inline-block italic">
-        Illustrative dashboard data — not real job records or payments.
+      <p className="text-xs text-gray-400 italic mb-5">
+        Showing data for connected wallet. Connect MetaMask to see your jobs.
       </p>
 
       {/* Metrics */}
@@ -204,21 +215,24 @@ export function DashboardPage() {
           value={m.completedJobs}
           icon={<CheckCircle2 className="w-5 h-5" />}
           accent="green"
-          trend={{ value: '100%', direction: 'up', label: 'success rate' }}
+          trend={m.totalJobs > 0
+            ? { value: `${Math.round(m.successRate * 100)}%`, direction: 'up', label: 'success rate' }
+            : undefined
+          }
         />
         <MetricCard
           title="Total Spend"
           value={formatUsd(m.totalSpendUsd)}
           icon={<DollarSign className="w-5 h-5" />}
           accent="purple"
-          subtitle="Illustrative total"
+          subtitle="ETH payments"
         />
       </div>
 
       {/* Charts row */}
       <div className="grid lg:grid-cols-3 gap-5 mb-6">
         <div className="lg:col-span-2">
-          <SpendChart />
+          <SpendChart jobs={jobs} />
         </div>
         <WorkloadBreakdown jobs={jobs} />
       </div>

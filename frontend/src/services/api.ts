@@ -156,17 +156,18 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
-/** wallet address used for requester-scoped queries; may be null if not connected */
+/** wallet address — reads the first connected account from window.ethereum synchronously */
 function getWalletAddress(): string | null {
-  // Pull from sessionStorage where WalletContext stores it, or fall back to null
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ethereum = (window as any).ethereum;
     if (!ethereum) return null;
+    // selectedAddress is populated synchronously once the user has connected
+    const addr = ethereum.selectedAddress as string | null | undefined;
+    return addr ?? null;
   } catch {
-    // not in browser
+    return null;
   }
-  return null;
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -271,6 +272,7 @@ function mapProvider(p: RawProvider): Provider {
 // Raw job shape from backend (§8.7)
 interface RawJob {
   jobId: string;
+  title?: string;
   requester: string;
   provider?: string;
   specCid: string;
@@ -310,7 +312,7 @@ function mapJob(j: RawJob, timeline?: RawTimelineEvent[]): Job {
   return {
     // SPEC §13 mismatch #12: Job.id ← jobId.toString()
     id: String(j.jobId),
-    title: `Job #${j.jobId}`,
+    title: j.title ?? `Job #${j.jobId}`,
     config: {
       workloadType: 'general-compute',
       gpuModel: '',
@@ -421,8 +423,23 @@ const realApi: ApiService = {
 
   async listJobs(): Promise<Job[]> {
     const walletAddress = getWalletAddress();
-    const qs = walletAddress ? `?requester=${walletAddress}` : '';
-    const data = await apiFetch<{ jobs: RawJob[] }>(`/jobs${qs}`);
+    // Show jobs where the wallet is requester OR provider — union via two queries
+    if (walletAddress) {
+      const [asRequester, asProvider] = await Promise.all([
+        apiFetch<{ jobs: RawJob[] }>(`/jobs?requester=${walletAddress}`).catch(() => ({ jobs: [] })),
+        apiFetch<{ jobs: RawJob[] }>(`/jobs?provider=${walletAddress}`).catch(() => ({ jobs: [] })),
+      ]);
+      // Deduplicate by jobId
+      const seen = new Set<string>();
+      const all = [...asRequester.jobs, ...asProvider.jobs].filter((j) => {
+        if (seen.has(j.jobId)) return false;
+        seen.add(j.jobId);
+        return true;
+      });
+      return all.map((j) => mapJob(j));
+    }
+    // Fallback: return all jobs (useful for first load before wallet connects)
+    const data = await apiFetch<{ jobs: RawJob[] }>('/jobs');
     return data.jobs.map((j) => mapJob(j));
   },
 

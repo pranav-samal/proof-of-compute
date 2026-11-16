@@ -231,7 +231,6 @@ export function MarketplacePage() {
         title="Compute Marketplace"
         subtitle="Browse GPU providers. Filter by stake, reputation, hardware and price."
         breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Marketplace' }]}
-        actions={<DemoBadge />}
       />
 
       {/* Search + sort bar */}

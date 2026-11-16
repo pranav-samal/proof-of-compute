@@ -3,6 +3,11 @@
  *
  * Uses minimal ABI fragments (event signatures only) to avoid loading
  * the full 1.8MB deployments ABI into memory.
+ *
+ * Auto-advance: after processing events the indexer calls selectVerifiers
+ * on any COMMITTED job (after commitBlock+1), and settle on any VERIFYING
+ * job that has reached quorum. This means the backend drives the happy-path
+ * automatically without needing manual UI calls.
  */
 import { ethers } from 'ethers';
 import db from '../db/db';
@@ -11,6 +16,16 @@ import { getJobEscrowAddress, getProviderRegistryAddress, loadDeployment } from 
 import * as H from './handlers';
 
 const POLL_INTERVAL_MS = 5_000;
+
+// ─── Minimal function ABIs for auto-advance ───────────────────────────────
+const ESCROW_CALL_ABI = [
+  'function selectVerifiers(uint256 jobId) external',
+  'function settle(uint256 jobId) external',
+  'function getJob(uint256 jobId) external view returns (tuple(address requester, address provider, string specCid, bytes32 profileHash, uint8 reproClass, uint8 assurance, uint64 deadline, uint256 payment, uint8 state, bytes32 policyHash, bytes32 resultHash, bytes32 checkpointRoot, string resultCid, uint64 commitBlock, uint8 outcome, uint64 verifyDeadline))',
+  'function getAttestation(uint256 jobId, uint256 index) external view returns (address verifier, uint8 verdict, bytes32 evidenceHash)',
+];
+// Hardhat deployer account drives auto-advance transactions
+const HARDHAT_DEPLOYER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 
 // ─── Minimal event ABIs (fragments only — no function ABIs needed) ────────
 // This avoids loading the full 1.8MB ABI into memory.
@@ -75,6 +90,10 @@ export async function startIndexer(): Promise<void> {
   // Use minimal fragment ABIs — much less memory than full ABI
   const escrowIface = new ethers.Interface(ESCROW_EVENTS);
   const registryIface = new ethers.Interface(REGISTRY_EVENTS);
+
+  // Create a signer contract for auto-advance calls (uses Hardhat deployer key)
+  const autoWallet = new ethers.Wallet(HARDHAT_DEPLOYER_KEY, rpcProvider);
+  const escrow = new ethers.Contract(escrowAddress, ESCROW_CALL_ABI, autoWallet);
 
   // Pre-compute topic hashes once
   const escrowTopics = ESCROW_EVENTS.map((e) => {
@@ -156,8 +175,63 @@ export async function startIndexer(): Promise<void> {
       if (allLogs.length > 0) {
         console.log(`[indexer] Processed ${allLogs.length} events (blocks ${fromBlock}–${toBlock})`);
       }
+
+      // ── Auto-advance: selectVerifiers and settle ──────────────────────
+      await autoAdvance(escrow, latestBlock);
+
     } catch (err) {
       console.error('[indexer] Poll error:', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // ── Auto-advance: selectVerifiers and settle ─────────────────────────
+  async function autoAdvance(escrowContract: ethers.Contract, latestBlock: number): Promise<void> {
+    // 1. selectVerifiers on COMMITTED jobs (after commitBlock+1)
+    interface CommittedJob { job_id: string; commit_block: number | null; }
+    const committed = db.all<CommittedJob>(
+      "SELECT job_id, commit_block FROM jobs WHERE state = 'COMMITTED'"
+    );
+    for (const j of committed) {
+      if (!j.commit_block) continue;
+      if (latestBlock <= j.commit_block + 1) continue; // need at least 1 block gap
+      try {
+        const tx = await escrowContract.selectVerifiers(BigInt(j.job_id));
+        await tx.wait();
+        console.log(`[indexer] auto selectVerifiers jobId=${j.job_id} tx=${tx.hash}`);
+      } catch (e) {
+        // May already be VERIFYING if another call raced — ignore revert
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!msg.includes('revert') && !msg.includes('invalid state')) {
+          console.warn(`[indexer] selectVerifiers failed jobId=${j.job_id}: ${msg}`);
+        }
+      }
+    }
+
+    // 2. settle on VERIFYING jobs that have enough attestations
+    interface VerifyingJob { job_id: string; }
+    const verifying = db.all<VerifyingJob>("SELECT job_id FROM jobs WHERE state = 'VERIFYING'");
+    for (const j of verifying) {
+      // Check quorum from policies table
+      interface PolicyRow { quorum: number; }
+      const policy = db.get<PolicyRow>('SELECT quorum FROM policies WHERE job_id = :id', { id: j.job_id });
+      if (!policy) continue;
+      interface ACount { cnt: number; }
+      const passCount = db.get<ACount>(
+        "SELECT COUNT(*) as cnt FROM attestations WHERE job_id = :id AND verdict = 'PASS'",
+        { id: j.job_id }
+      );
+      if ((passCount?.cnt ?? 0) >= policy.quorum) {
+        try {
+          const tx = await escrowContract.settle(BigInt(j.job_id));
+          await tx.wait();
+          console.log(`[indexer] auto settle jobId=${j.job_id} tx=${tx.hash}`);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!msg.includes('revert') && !msg.includes('invalid state')) {
+            console.warn(`[indexer] settle failed jobId=${j.job_id}: ${msg}`);
+          }
+        }
+      }
     }
   }
 

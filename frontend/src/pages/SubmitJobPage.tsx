@@ -441,11 +441,14 @@ function StepReview({ values, onSignTransaction, signing }: {
         <ReviewRow label="Tier" value={TIER_LABELS[policy.tier]} />
         <ReviewRow label="Sampling" value={policy.samplingPct > 0 ? `${policy.samplingPct}%` : 'None'} />
         <ReviewRow label="Budget" value={formatUsd(values.budgetUsd)} />
-        <ReviewRow label="Locks in escrow" value={
-          <span className="flex items-center gap-1.5">
+        <ReviewRow label="Payment locked in escrow" value={
+          <span className="flex items-center gap-1.5 font-bold text-accent-600">
             <Lock className="w-3 h-3" />
-            {policy.requiredCollateralEth} ETH collateral
+            {(values.budgetUsd * 5e12 / 1e18).toFixed(6)} ETH
           </span>
+        } />
+        <ReviewRow label="Provider collateral (locked at assign)" value={
+          <span className="text-xs text-gray-400">{policy.requiredCollateralEth} ETH — provider's stake</span>
         } />
       </div>
 
@@ -486,6 +489,7 @@ export function SubmitJobPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { connected } = useWallet();
+  const signingRef = React.useRef(false); // guards against StrictMode double-invoke
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<FormValues>({
     ...DEFAULTS,
@@ -509,6 +513,8 @@ export function SubmitJobPage() {
   }
 
   async function handleSignTransaction() {
+    if (signingRef.current) return; // prevent double-invoke from React StrictMode
+    signingRef.current = true;
     setTxError(null);
     setSigning(true);
     try {
@@ -522,6 +528,8 @@ export function SubmitJobPage() {
 
       const specPayload = {
         type: backendType,
+        title: values.title,
+        description: values.description,
         params: backendType === 'sha-chain'
           ? { seed: '0x' + '0'.repeat(64), iterations: 1000, checkpointEvery: 100 }
           : { seedA: '0x' + '0'.repeat(64), seedB: '0x' + '1'.repeat(64), size: 64, precision: 'float64' },
@@ -565,11 +573,13 @@ export function SubmitJobPage() {
       );
 
       setSubmitted(true);
-      navigate('/jobs', { state: { newJobId: jobId, txHash } });
+      // Navigate directly to the job details page — real job ID from chain
+      navigate(`/jobs/${jobId}`, { state: { txHash } });
     } catch (err) {
       setTxError(err instanceof Error ? err.message : 'Transaction failed');
     } finally {
       setSigning(false);
+      signingRef.current = false;
     }
   }
 

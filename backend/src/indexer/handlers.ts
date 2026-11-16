@@ -52,14 +52,25 @@ export function handleJobRegistered(
         deadline, payment_wei, state, outcome, created_at, updated_at)
      VALUES (:jobId, :requester, :specCid, :profileHash, 0, 0,
              0, :payment, 'REGISTERED', 'NONE', :created, :created)`,
-    { jobId: str(jobId), requester: str(requester), specCid: str(specCid),
-      profileHash: hex(profileHash), payment: str(payment), created }
+    {
+      jobId: str(jobId), requester: str(requester), specCid: str(specCid),
+      profileHash: hex(profileHash), payment: str(payment), created
+    }
   );
 
-  // Upsert provider row for requester tracking
   db.run(
     `INSERT OR IGNORE INTO providers (address, capability_hash) VALUES (:addr, '0x')`,
     { addr: str(requester) }
+  );
+
+  // Record tx hash for timeline
+  db.run(
+    `INSERT INTO job_events (job_id, state, tx_hash, block_number, ts, detail)
+     VALUES (:jobId, 'REGISTERED', :txHash, :block, :ts, :detail)`,
+    {
+      jobId: str(jobId), txHash: log.transactionHash, block: log.blockNumber,
+      ts: ts(blockTs), detail: `specCid: ${str(specCid)}`
+    }
   );
 
   db.persist();
@@ -81,10 +92,18 @@ export function handleProviderAssigned(
     { provider: str(provider), now: ts(blockTs), jobId: str(jobId) }
   );
 
-  // Upsert provider
   db.run(
     `INSERT OR IGNORE INTO providers (address, capability_hash) VALUES (:addr, '0x')`,
     { addr: str(provider) }
+  );
+
+  db.run(
+    `INSERT INTO job_events (job_id, state, tx_hash, block_number, ts, detail)
+     VALUES (:jobId, 'ASSIGNED', :txHash, :block, :ts, :detail)`,
+    {
+      jobId: str(jobId), txHash: log.transactionHash, block: log.blockNumber,
+      ts: ts(blockTs), detail: `provider: ${str(provider)}`
+    }
   );
 
   db.persist();
@@ -107,17 +126,28 @@ export function handlePolicyRecorded(
   );
 
   // Determine verifier count and quorum from tier
-  const tierCounts = [[1,1],[3,2],[5,3],[5,4]];
+  const tierCounts = [[1, 1], [3, 2], [5, 3], [5, 4]];
   const t = num(tier);
-  const [verifierCount, quorum] = tierCounts[t] ?? [1,1];
+  const [verifierCount, quorum] = tierCounts[t] ?? [1, 1];
 
   db.run(
     `INSERT OR REPLACE INTO policies
        (job_id, tier, sampling_bps, verifier_count, quorum, collateral_wei, challenge_window)
      VALUES (:jobId, :tier, :samplingBps, :verifierCount, :quorum, :collateral, :challengeWindow)`,
-    { jobId: str(jobId), tier: t, samplingBps: num(samplingBps),
+    {
+      jobId: str(jobId), tier: t, samplingBps: num(samplingBps),
       verifierCount, quorum, collateral: str(collateral),
-      challengeWindow: num(challengeWindow) }
+      challengeWindow: num(challengeWindow)
+    }
+  );
+
+  db.run(
+    `INSERT INTO job_events (job_id, state, tx_hash, block_number, ts, detail)
+     VALUES (:jobId, 'ASSIGNED', :txHash, :block, :ts, :detail)`,
+    {
+      jobId: str(jobId), txHash: log.transactionHash, block: log.blockNumber,
+      ts: ts(blockTs), detail: `policyHash: ${hex(policyHash)} tier: ${num(tier)}`
+    }
   );
 
   db.persist();
@@ -139,9 +169,20 @@ export function handleResultCommitted(
          result_cid = :resultCid, state = 'COMMITTED',
          commit_block = :block, updated_at = :now
      WHERE job_id = :jobId`,
-    { resultHash: hex(resultHash), checkpointRoot: hex(checkpointRoot),
+    {
+      resultHash: hex(resultHash), checkpointRoot: hex(checkpointRoot),
       resultCid: str(resultCid), block: log.blockNumber,
-      now: ts(blockTs), jobId: str(jobId) }
+      now: ts(blockTs), jobId: str(jobId)
+    }
+  );
+
+  db.run(
+    `INSERT INTO job_events (job_id, state, tx_hash, block_number, ts, detail)
+     VALUES (:jobId, 'COMMITTED', :txHash, :block, :ts, :detail)`,
+    {
+      jobId: str(jobId), txHash: log.transactionHash, block: log.blockNumber,
+      ts: ts(blockTs), detail: `resultHash: ${hex(resultHash)}`
+    }
   );
 
   db.persist();
@@ -167,10 +208,21 @@ export function handleVerifiersSelected(
       `INSERT OR REPLACE INTO verifier_selections
          (job_id, verifier, position, verify_deadline)
        VALUES (:jobId, :verifier, :position, :deadline)`,
-      { jobId: str(jobId), verifier: str(verifiers[i]),
-        position: i, deadline: num(verifyDeadline) }
+      {
+        jobId: str(jobId), verifier: str(verifiers[i]),
+        position: i, deadline: num(verifyDeadline)
+      }
     );
   }
+
+  db.run(
+    `INSERT INTO job_events (job_id, state, tx_hash, block_number, ts, detail)
+     VALUES (:jobId, 'VERIFYING', :txHash, :block, :ts, :detail)`,
+    {
+      jobId: str(jobId), txHash: log.transactionHash, block: log.blockNumber,
+      ts: ts(blockTs), detail: `${verifiers.length} verifier(s) selected`
+    }
+  );
 
   db.persist();
   console.log(`[indexer] VerifiersSelected: jobId=${jobId} count=${verifiers.length}`);
@@ -193,9 +245,11 @@ export function handleAttestationSubmitted(
     `INSERT OR REPLACE INTO attestations
        (job_id, verifier, verdict, evidence_hash, tx_hash, block_number, ts)
      VALUES (:jobId, :verifier, :verdict, :evidenceHash, :txHash, :block, :ts)`,
-    { jobId: str(jobId), verifier: str(verifier), verdict: verdictStr,
+    {
+      jobId: str(jobId), verifier: str(verifier), verdict: verdictStr,
       evidenceHash: hex(evidenceHash), txHash: log.transactionHash,
-      block: log.blockNumber, ts: ts(blockTs) }
+      block: log.blockNumber, ts: ts(blockTs)
+    }
   );
 
   db.persist();
@@ -223,8 +277,19 @@ export function handleJobSettled(
        (job_id, outcome, provider_paid, requester_refund, verifier_fees,
         slash_amount, tx_hash, block_number, ts)
      VALUES (:jobId, :outcome, '0', '0', '0', '0', :txHash, :block, :ts)`,
-    { jobId: str(jobId), outcome: outcomeStr, txHash: log.transactionHash,
-      block: log.blockNumber, ts: ts(blockTs) }
+    {
+      jobId: str(jobId), outcome: outcomeStr, txHash: log.transactionHash,
+      block: log.blockNumber, ts: ts(blockTs)
+    }
+  );
+
+  db.run(
+    `INSERT INTO job_events (job_id, state, tx_hash, block_number, ts, detail)
+     VALUES (:jobId, 'SETTLED', :txHash, :block, :ts, :detail)`,
+    {
+      jobId: str(jobId), txHash: log.transactionHash, block: log.blockNumber,
+      ts: ts(blockTs), detail: `outcome: ${outcomeStr}`
+    }
   );
 
   db.persist();
@@ -253,13 +318,15 @@ export function handleReceiptIssued(
         attestation_root, tier, outcome, settled_at, tx_hash)
      VALUES (:jobId, :specCid, :policyHash, :provider, :requester, :resultHash,
              :attestationRoot, :tier, :outcome, :settledAt, :txHash)`,
-    { jobId: str(jobId), specCid: job?.spec_cid ?? '',
+    {
+      jobId: str(jobId), specCid: job?.spec_cid ?? '',
       policyHash: hex(policyHash), provider: job?.provider ?? '',
       requester: job?.requester ?? '', resultHash: hex(resultHash),
       attestationRoot: hex(attestationRoot), tier: num(tier),
       outcome: outcomeStr,
       settledAt: new Date(num(settledAt) * 1000).toISOString(),
-      txHash: log.transactionHash }
+      txHash: log.transactionHash
+    }
   );
 
   db.persist();

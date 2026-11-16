@@ -24,25 +24,22 @@ type TabId = 'overview' | 'attest' | 'bond';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'attest',   label: 'Submit Attestation' },
-  { id: 'bond',     label: 'Bond' },
+  { id: 'attest', label: 'Submit Attestation' },
+  { id: 'bond', label: 'Bond' },
 ];
 
 function OverviewTab({ v }: { v: VerifierNode }) {
   return (
     <div className="space-y-5">
       <Card padding="lg">
-        <div className="flex items-center justify-between mb-4">
-          <CardHeader title="Verifier Identity" />
-          <DemoBadge />
-        </div>
+        <CardHeader title="Verifier Identity" />
         {[
-          ['Verifier ID',       v.id],
-          ['Address',           v.address],
-          ['Bond (ETH)',        `${v.bondEth} ETH`],
-          ['Assigned Tasks',    v.assignedTasks.toString()],
-          ['Completed Tasks',   v.completedTasks.toString()],
-          ['Slash Count',       v.slashCount.toString()],
+          ['Verifier ID', v.id],
+          ['Address', v.address],
+          ['Bond (ETH)', `${v.bondEth} ETH`],
+          ['Assigned Tasks', v.assignedTasks.toString()],
+          ['Completed Tasks', v.completedTasks.toString()],
+          ['Slash Count', v.slashCount.toString()],
         ].map(([k, val]) => (
           <div key={k} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
             <span className="text-sm text-gray-500">{k}</span>
@@ -66,11 +63,11 @@ function OverviewTab({ v }: { v: VerifierNode }) {
 function AttestTab({ v }: { v: VerifierNode }) {
   const { connected } = useWallet();
   const contractReady = chain.isContractConfigured();
-  const [jobId, setJobId]             = useState('');
-  const [verdict, setVerdict]         = useState<Attestation['verdict']>('pass');
+  const [jobId, setJobId] = useState('');
+  const [verdict, setVerdict] = useState<Attestation['verdict']>('pass');
   const [evidenceHash, setEvidenceHash] = useState('');
-  const [txResult, setTxResult]       = useState<string | null>(null);
-  const [error, setError]             = useState<string | null>(null);
+  const [txResult, setTxResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Map UI verdict string → uint8
   const verdictUint8: Record<Attestation['verdict'], 0 | 1 | 2> = {
@@ -110,9 +107,9 @@ function AttestTab({ v }: { v: VerifierNode }) {
         const resultHash = '0x' + '0'.repeat(64);
 
         const domain = {
-          name:              'ProofOfCompute',
-          version:           '1',
-          chainId:           Number(network.chainId),
+          name: 'ProofOfCompute',
+          version: '1',
+          chainId: Number(network.chainId),
           verifyingContract: jobEscrowAddress,
         };
 
@@ -121,19 +118,19 @@ function AttestTab({ v }: { v: VerifierNode }) {
         //             uint8 verdict, bytes32 evidenceHash)
         const types = {
           Attestation: [
-            { name: 'jobId',        type: 'uint256' },
-            { name: 'policyHash',   type: 'bytes32' },
-            { name: 'resultHash',   type: 'bytes32' },
-            { name: 'verdict',      type: 'uint8'   },
+            { name: 'jobId', type: 'uint256' },
+            { name: 'policyHash', type: 'bytes32' },
+            { name: 'resultHash', type: 'bytes32' },
+            { name: 'verdict', type: 'uint8' },
             { name: 'evidenceHash', type: 'bytes32' },
           ],
         };
 
         const value = {
-          jobId:        jobIdBigInt,
+          jobId: jobIdBigInt,
           policyHash,
           resultHash,
-          verdict:      verdictNum,
+          verdict: verdictNum,
           evidenceHash: evidenceHashBytes,
         };
 
@@ -236,12 +233,10 @@ function BondTab({ v }: { v: VerifierNode }) {
         <div className="bg-white/70 border border-gray-200/70 rounded-2xl p-4 shadow-card text-center">
           <p className="text-2xl font-black text-brand-950">{v.bondEth} ETH</p>
           <p className="text-sm font-semibold text-brand-800 mt-0.5">Current Bond</p>
-          <DemoBadge className="mx-auto mt-2 flex" />
         </div>
         <div className="bg-white/70 border border-gray-200/70 rounded-2xl p-4 shadow-card text-center">
           <p className="text-2xl font-black text-brand-950">{v.slashCount}</p>
           <p className="text-sm font-semibold text-brand-800 mt-0.5">Times Slashed</p>
-          <DemoBadge className="mx-auto mt-2 flex" />
         </div>
       </div>
 
@@ -284,7 +279,7 @@ function BondTab({ v }: { v: VerifierNode }) {
 
       {txResult && (
         <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-mono text-indigo-800 break-all">
-          {txResult} <DemoBadge className="ml-2 inline-flex" label="Mock tx" />
+          Bond tx: {txResult}
         </div>
       )}
     </div>
@@ -292,12 +287,22 @@ function BondTab({ v }: { v: VerifierNode }) {
 }
 
 export function VerifierConsolePage() {
+  const { address: walletAddress, connected } = useWallet();
   const [verifiers, setVerifiers] = useState<VerifierNode[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   useEffect(() => { api.listVerifiers().then(setVerifiers); }, []);
 
-  const v = verifiers.find((x) => x.id === DEMO_VERIFIER_ID);
+  // Find verifier entry matching the connected wallet address
+  const v = walletAddress
+    ? verifiers.find((x) => x.address.toLowerCase() === walletAddress.toLowerCase())
+    : verifiers[0]; // fallback to first if not connected yet
+
+  if (!connected) return (
+    <div className="py-20 text-center">
+      <p className="text-sm text-gray-500">Connect your wallet to view the Verifier Console.</p>
+    </div>
+  );
 
   return (
     <div>
@@ -307,10 +312,10 @@ export function VerifierConsolePage() {
       {v && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <MetricCard title="Bond"             value={`${v.bondEth} ETH`}        icon={<DollarSign className="w-5 h-5" />} accent="blue" />
-            <MetricCard title="Assigned Tasks"   value={v.assignedTasks}            icon={<Layers className="w-5 h-5" />}    accent="amber" />
-            <MetricCard title="Completed Tasks"  value={v.completedTasks}           icon={<CheckCircle2 className="w-5 h-5" />} accent="green" />
-            <MetricCard title="Slash Count"      value={v.slashCount}               icon={<AlertCircle className="w-5 h-5" />} accent="purple" />
+            <MetricCard title="Bond" value={`${v.bondEth} ETH`} icon={<DollarSign className="w-5 h-5" />} accent="blue" />
+            <MetricCard title="Assigned Tasks" value={v.assignedTasks} icon={<Layers className="w-5 h-5" />} accent="amber" />
+            <MetricCard title="Completed Tasks" value={v.completedTasks} icon={<CheckCircle2 className="w-5 h-5" />} accent="green" />
+            <MetricCard title="Slash Count" value={v.slashCount} icon={<AlertCircle className="w-5 h-5" />} accent="purple" />
           </div>
 
           <div className="flex gap-1 bg-gray-100/80 rounded-2xl p-1 mb-6">
@@ -324,8 +329,8 @@ export function VerifierConsolePage() {
           </div>
 
           {activeTab === 'overview' && <OverviewTab v={v} />}
-          {activeTab === 'attest'   && <AttestTab v={v} />}
-          {activeTab === 'bond'     && <BondTab v={v} />}
+          {activeTab === 'attest' && <AttestTab v={v} />}
+          {activeTab === 'bond' && <BondTab v={v} />}
         </>
       )}
 

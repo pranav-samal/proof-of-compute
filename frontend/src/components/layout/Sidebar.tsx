@@ -92,12 +92,12 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* Footer */}
       <div className="px-4 py-4 border-t border-gray-100">
-        <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-50 border border-amber-200">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-          <p className="text-xs text-amber-700 font-bold">Prototype / Demo</p>
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse" />
+          <p className="text-xs text-emerald-700 font-bold">Live — Hardhat Local</p>
         </div>
         <p className="mt-2 text-[10px] text-gray-400 leading-relaxed">
-          No real compute, blockchain, or payments.
+          Chain ID 31337 · Real transactions · Real escrow
         </p>
       </div>
     </div>

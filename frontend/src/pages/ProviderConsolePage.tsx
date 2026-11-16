@@ -3,8 +3,7 @@ import {
   Server, Cpu, MemoryStick, MapPin, Star, CheckCircle2,
   TrendingUp, DollarSign, AlertCircle, Info, Activity,
   Briefcase, Hash, ArrowDownToLine, ArrowUpFromLine, Lock,
-} from 'lucide-react';
-import { PageHeader } from '../components/ui/PageHeader';
+} from 'lucide-react'; import { PageHeader } from '../components/ui/PageHeader';
 import { MetricCard } from '../components/ui/MetricCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { SpecBadge } from '../components/ui/SpecBadge';
@@ -20,7 +19,7 @@ import { formatUsd, formatDate, cn } from '../lib/utils';
 import type { Provider, Job } from '../types';
 import { useWallet } from '../context/WalletContext';
 
-const DEMO_PROVIDER_ID = 'prov-001';
+const DEMO_PROVIDER_ID = 'prov-001'; // Fallback only — overridden by wallet address at runtime
 
 type TabId = 'profile' | 'jobs' | 'stake' | 'commit' | 'performance' | 'earnings';
 
@@ -93,13 +92,12 @@ function ProfileTab({ p }: { p: Provider }) {
 
 // ─── Jobs tab ──────────────────────────────────────────────────────────────
 
-function JobsTab({ jobs }: { jobs: Job[] }) {
-  const assigned = jobs.filter((j) => j.providerId === DEMO_PROVIDER_ID);
+function JobsTab({ jobs, providerAddress }: { jobs: Job[]; providerAddress: string }) {
+  const assigned = jobs.filter((j) => j.providerId?.toLowerCase() === providerAddress.toLowerCase());
   return (
     <div className="space-y-4">
-      <DemoBadge label="Illustrative assigned jobs" />
       {assigned.length === 0 ? (
-        <EmptyState icon={<Briefcase className="w-5 h-5" />} title="No assigned jobs" size="md" />
+        <EmptyState icon={<Briefcase className="w-5 h-5" />} title="No jobs assigned to your wallet" size="md" />
       ) : assigned.map((job) => (
         <Card key={job.id} padding="md">
           <div className="flex items-start justify-between gap-3">
@@ -156,7 +154,6 @@ function StakeTab({ p }: { p: Provider }) {
             <p className="text-xl font-black text-brand-950">{value}</p>
             <p className="text-sm font-semibold text-brand-800 mt-0.5">{label}</p>
             <p className="text-xs text-gray-400 italic mt-0.5">{sub}</p>
-            <DemoBadge className="mx-auto mt-2 flex" />
           </div>
         ))}
       </div>
@@ -205,7 +202,7 @@ function StakeTab({ p }: { p: Provider }) {
 
       {txResult && (
         <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-mono text-indigo-800">
-          {txResult} <DemoBadge className="ml-2 inline-flex" label="Mock tx" />
+          Tx: {txResult}
         </div>
       )}
     </div>
@@ -214,10 +211,10 @@ function StakeTab({ p }: { p: Provider }) {
 
 // ─── Commit result tab ─────────────────────────────────────────────────────
 
-function CommitTab({ jobs }: { jobs: Job[] }) {
+function CommitTab({ jobs, providerAddress }: { jobs: Job[]; providerAddress: string }) {
   const { connected } = useWallet();
   const contractReady = chain.isContractConfigured();
-  const committable = jobs.filter((j) => j.providerId === DEMO_PROVIDER_ID && j.status === 'ASSIGNED');
+  const committable = jobs.filter((j) => j.providerId?.toLowerCase() === providerAddress.toLowerCase() && j.status === 'ASSIGNED');
   const [selectedJobId, setSelectedJobId] = useState('');
   const [resultHash, setResultHash] = useState('');
   const [txResult, setTxResult] = useState<string | null>(null);
@@ -281,7 +278,7 @@ function CommitTab({ jobs }: { jobs: Job[] }) {
 
       {txResult && (
         <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-mono text-indigo-800">
-          {txResult} <DemoBadge className="ml-2 inline-flex" label="Mock tx" />
+          Commit tx: {txResult}
         </div>
       )}
     </div>
@@ -337,14 +334,47 @@ function EarningsTab() {
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export function ProviderConsolePage() {
+  const { address: walletAddress, connected } = useWallet();
+  const providerId = walletAddress ?? DEMO_PROVIDER_ID;
   const [provider, setProvider] = useState<Provider | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [notRegistered, setNotRegistered] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('profile');
 
   useEffect(() => {
-    api.getProvider(DEMO_PROVIDER_ID).then(setProvider);
+    if (!providerId) return;
+    api.getProvider(providerId)
+      .then((p) => {
+        if (!p) setNotRegistered(true);
+        setProvider(p);
+      })
+      .catch(() => setNotRegistered(true));
     api.listJobs().then(setJobs);
-  }, []);
+  }, [providerId]);
+
+  if (!connected) return (
+    <div className="py-20 text-center">
+      <p className="text-sm text-gray-500 mb-2">Connect your wallet to view the Provider Console.</p>
+    </div>
+  );
+
+  if (notRegistered && !provider) return (
+    <div>
+      <PageHeader title="Provider Console" subtitle="Register as a provider to get started."
+        breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Provider Console' }]} />
+      <div className="max-w-lg mx-auto text-center py-12">
+        <Server className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <p className="text-sm font-semibold text-brand-900 mb-1">Not registered as a provider</p>
+        <p className="text-xs text-gray-500 mb-4">
+          Wallet <code className="font-mono text-xs">{walletAddress}</code> has not registered in ProviderRegistry.
+        </p>
+        <p className="text-xs text-gray-400">
+          Run <code>npm run seed:chain</code> to register test providers, or call{' '}
+          <code>registerProvider + depositStake</code> from your wallet.
+        </p>
+      </div>
+    </div>
+  );
 
   if (!provider) return <p className="text-sm text-gray-400 py-8 text-center">Loading…</p>;
 
@@ -372,9 +402,9 @@ export function ProviderConsolePage() {
       </div>
 
       {activeTab === 'profile' && <ProfileTab p={provider} />}
-      {activeTab === 'jobs' && <JobsTab jobs={jobs} />}
+      {activeTab === 'jobs' && <JobsTab jobs={jobs} providerAddress={provider.id} />}
       {activeTab === 'stake' && <StakeTab p={provider} />}
-      {activeTab === 'commit' && <CommitTab jobs={jobs} />}
+      {activeTab === 'commit' && <CommitTab jobs={jobs} providerAddress={provider.id} />}
       {activeTab === 'performance' && <PerformanceTab p={provider} />}
       {activeTab === 'earnings' && <EarningsTab />}
     </div>

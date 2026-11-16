@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     result_cid      TEXT,
     commit_block    INTEGER,
     outcome         TEXT NOT NULL DEFAULT 'NONE',
+    title           TEXT,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -110,7 +111,28 @@ CREATE TABLE IF NOT EXISTS receipts (
     tx_hash          TEXT NOT NULL
 );
 
--- ─── Indexer state ───────────────────────────────────────────────────────────
+-- ─── Spec title cache ────────────────────────────────────────────────────────
+-- Stores the human-readable title for each spec CID so the job list can
+-- show something better than "Job #1".  Written by POST /jobs/spec.
+
+CREATE TABLE IF NOT EXISTS spec_titles (
+    spec_cid  TEXT PRIMARY KEY,
+    title     TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+-- ─── Per-state transaction hashes ──────────────────────────────────────────
+-- Records the tx hash each time a job state changes.
+
+CREATE TABLE IF NOT EXISTS job_events (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id          TEXT NOT NULL,
+    state           TEXT NOT NULL,
+    tx_hash         TEXT NOT NULL,
+    block_number    INTEGER NOT NULL,
+    ts              TEXT NOT NULL,
+    detail          TEXT
+);
 
 CREATE TABLE IF NOT EXISTS sync_state (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
