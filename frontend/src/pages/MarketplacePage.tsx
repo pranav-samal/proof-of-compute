@@ -203,7 +203,19 @@ export function MarketplacePage() {
   const [detailProvider, setDetail] = useState<Provider | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  useEffect(() => { api.listProviders().then(setProviders); }, []);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    api.listProviders()
+      .then((data) => { setProviders(data); setLoading(false); })
+      .catch((e) => {
+        console.error('[Marketplace] listProviders error:', e);
+        setFetchError(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      });
+  }, []);
 
   const results = useMemo(() => applyFilters(providers, filters, sort), [providers, filters, sort]);
   const activeCount = countActive(filters);
@@ -275,7 +287,20 @@ export function MarketplacePage() {
             )}
           </div>
 
-          {results.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3 text-gray-400">
+                <div className="w-8 h-8 border-2 border-brand-300 border-t-brand-700 rounded-full animate-spin" />
+                <p className="text-sm">Loading providers…</p>
+              </div>
+            </div>
+          ) : fetchError ? (
+            <div className="p-5 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-700">
+              <p className="font-semibold mb-1">Failed to load providers</p>
+              <p className="text-xs font-mono">{fetchError}</p>
+              <p className="text-xs mt-2 text-red-500">Make sure the backend is running at <code>http://localhost:3001</code></p>
+            </div>
+          ) : results.length === 0 ? (
             <EmptyState title="No providers match your filters" description="Relax the stake, reputation, VRAM, or price filters."
               action={<Button variant="secondary" size="sm" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset filters</Button>} />
           ) : viewMode === 'grid' ? (

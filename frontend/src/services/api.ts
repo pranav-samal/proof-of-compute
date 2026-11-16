@@ -53,28 +53,28 @@ import { MOCK_JOBS, MOCK_DASHBOARD_METRICS } from '../data/jobs';
 import type { OnChainJobStatus } from '../types';
 
 const MOCK_VERIFIERS: VerifierNode[] = [
-  { id: 'ver-001', address: '0xABCD…1234', bondEth: 2.5,  assignedTasks: 14, completedTasks: 13, slashCount: 0 },
-  { id: 'ver-002', address: '0xDEAD…BEEF', bondEth: 1.0,  assignedTasks: 7,  completedTasks: 6,  slashCount: 1 },
-  { id: 'ver-003', address: '0xFEED…CAFE', bondEth: 5.0,  assignedTasks: 31, completedTasks: 31, slashCount: 0 },
+  { id: 'ver-001', address: '0xABCD…1234', bondEth: 2.5, assignedTasks: 14, completedTasks: 13, slashCount: 0 },
+  { id: 'ver-002', address: '0xDEAD…BEEF', bondEth: 1.0, assignedTasks: 7, completedTasks: 6, slashCount: 1 },
+  { id: 'ver-003', address: '0xFEED…CAFE', bondEth: 5.0, assignedTasks: 31, completedTasks: 31, slashCount: 0 },
 ];
 
 // Map legacy statuses to canonical chain states
 function mapStatus(raw: string): OnChainJobStatus {
   const map: Record<string, OnChainJobStatus> = {
-    draft:     'REGISTERED',
-    queued:    'ASSIGNED',
-    running:   'COMMITTED',
+    draft: 'REGISTERED',
+    queued: 'ASSIGNED',
+    running: 'COMMITTED',
     completed: 'SETTLED',
-    failed:    'DISPUTED',
+    failed: 'DISPUTED',
     cancelled: 'REFUNDED',
     // already canonical
     REGISTERED: 'REGISTERED',
-    ASSIGNED:   'ASSIGNED',
-    COMMITTED:  'COMMITTED',
-    VERIFYING:  'VERIFYING',
-    SETTLED:    'SETTLED',
-    DISPUTED:   'DISPUTED',
-    REFUNDED:   'REFUNDED',
+    ASSIGNED: 'ASSIGNED',
+    COMMITTED: 'COMMITTED',
+    VERIFYING: 'VERIFYING',
+    SETTLED: 'SETTLED',
+    DISPUTED: 'DISPUTED',
+    REFUNDED: 'REFUNDED',
   };
   return map[raw] ?? 'REGISTERED';
 }
@@ -178,7 +178,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await res.json().catch(() => ({}));
     throw new Error(
       (body as { error?: { message?: string } }).error?.message ??
-        `HTTP ${res.status} from ${path}`,
+      `HTTP ${res.status} from ${path}`,
     );
   }
   return res.json() as Promise<T>;
@@ -201,9 +201,9 @@ function mapAssuranceLevel(v: number): VerificationPolicy['assuranceLevel'] {
 }
 
 function mapOutcomeStatus(outcome: string): SettlementOutcome['status'] {
-  if (outcome === 'ACCEPTED')      return 'released';
-  if (outcome === 'REJECTED')      return 'slashed';
-  if (outcome === 'INCONCLUSIVE')  return 'held';
+  if (outcome === 'ACCEPTED') return 'released';
+  if (outcome === 'REJECTED') return 'slashed';
+  if (outcome === 'INCONCLUSIVE') return 'held';
   return 'refunded';
 }
 
@@ -241,29 +241,29 @@ function mapProvider(p: RawProvider): Provider {
     location: p.profile?.location ?? '',
     countryCode: '',
     gpu: {
-      model:        p.profile?.gpu?.model ?? '',
-      vramGb:       p.profile?.gpu?.vramGb ?? 0,
-      count:        p.profile?.gpu?.count ?? 1,
+      model: p.profile?.gpu?.model ?? '',
+      vramGb: p.profile?.gpu?.vramGb ?? 0,
+      count: p.profile?.gpu?.count ?? 1,
       architecture: p.profile?.gpu?.architecture ?? '',
-      cudaCores:    p.profile?.gpu?.cudaCores ?? 0,
+      cudaCores: p.profile?.gpu?.cudaCores ?? 0,
     },
-    ramGb:            p.profile?.ramGb ?? 0,
-    storageGb:        p.profile?.storageGb ?? 0,
-    pricePerHour:     p.profile?.pricePerHour ?? 0,
-    rating:           0,
-    reviewCount:      0,
-    completedJobs:    p.verifiedJobCount ?? 0,
-    availability:     (p.profile?.availability as Provider['availability']) ?? 'offline',
-    uptimePercent:    p.profile?.uptimePercent ?? 0,
-    frameworks:       p.profile?.frameworks ?? [],
+    ramGb: p.profile?.ramGb ?? 0,
+    storageGb: p.profile?.storageGb ?? 0,
+    pricePerHour: p.profile?.pricePerHour ?? 0,
+    rating: 0,
+    reviewCount: 0,
+    completedJobs: p.verifiedJobCount ?? 0,
+    availability: (p.profile?.availability as Provider['availability']) ?? 'offline',
+    uptimePercent: p.profile?.uptimePercent ?? 0,
+    frameworks: p.profile?.frameworks ?? [],
     verifiedProvider: true,
-    joinedDate:       p.profile?.joinedDate ?? '',
-    tags:             p.profile?.tags ?? [],
-    stakeEth:         parseFloat(formatEther(BigInt(p.stakeWei ?? '0'))),
-    lockedStakeEth:   parseFloat(formatEther(BigInt(p.lockedStakeWei ?? '0'))),
+    joinedDate: p.profile?.joinedDate ?? '',
+    tags: p.profile?.tags ?? [],
+    stakeEth: parseFloat(formatEther(BigInt(p.stakeWei ?? '0'))),
+    lockedStakeEth: parseFloat(formatEther(BigInt(p.lockedStakeWei ?? '0'))),
     // SPEC §13 mismatch #2: Provider.reputation ← reputationBps / 100
-    reputation:       (p.reputationBps ?? 0) / 100,
-    slashCount:       p.slashCount ?? 0,
+    reputation: (p.reputationBps ?? 0) / 100,
+    slashCount: p.slashCount ?? 0,
     verifiedJobsCount: p.verifiedJobCount ?? 0,
   };
 }
@@ -393,8 +393,19 @@ function mapReceipt(raw: RawReceipt, attestations: RawAttestation[], tier: numbe
 
 const realApi: ApiService = {
   async listProviders(): Promise<Provider[]> {
-    const data = await apiFetch<{ providers: RawProvider[] }>('/providers');
-    return data.providers.map(mapProvider);
+    try {
+      const data = await apiFetch<{ providers: RawProvider[] }>('/providers');
+      if (!data?.providers) return [];
+      return data.providers
+        .map((p) => {
+          try { return mapProvider(p); }
+          catch (e) { console.error('[api] mapProvider failed for', p.address, e); return null; }
+        })
+        .filter((p): p is Provider => p !== null);
+    } catch (e) {
+      console.error('[api] listProviders failed:', e);
+      return [];
+    }
   },
 
   async getProvider(id: string): Promise<Provider | null> {
@@ -457,11 +468,11 @@ const realApi: ApiService = {
       successRate: number;
     }>(`/stats/requester/${walletAddress}`);
     return {
-      totalJobs:     data.totalJobs,
-      activeJobs:    data.activeJobs,
+      totalJobs: data.totalJobs,
+      activeJobs: data.activeJobs,
       completedJobs: data.completedJobs,
       totalSpendUsd: parseFloat(formatEther(BigInt(data.totalSpentWei ?? '0'))),
-      successRate:   data.successRate,
+      successRate: data.successRate,
     };
   },
 
@@ -480,9 +491,9 @@ const realApi: ApiService = {
       id: `ver-${String(i + 1).padStart(3, '0')}`,
       address: v.address,
       bondEth: parseFloat(formatEther(BigInt(v.bondWei ?? '0'))),
-      assignedTasks:  v.assignedTasks,
+      assignedTasks: v.assignedTasks,
       completedTasks: v.completedTasks,
-      slashCount:     v.slashCount,
+      slashCount: v.slashCount,
     }));
   },
 

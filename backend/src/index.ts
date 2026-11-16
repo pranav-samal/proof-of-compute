@@ -10,6 +10,7 @@
  */
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
 import { PORT } from './config';
 import { runMigrations } from './db/migrate';
 
@@ -31,6 +32,19 @@ import { startIndexer } from './indexer/indexer';
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────
+// Allow requests from the frontend dev server and any localhost origin
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Postman) and localhost origins
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS: origin not allowed'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────
