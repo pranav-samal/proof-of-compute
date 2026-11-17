@@ -12,7 +12,7 @@ import { Button } from '../components/ui/Button';
 import { FormField, Input } from '../components/ui/FormField';
 import { api } from '../services/api';
 import { chain, parseEther } from '../services/chain';
-import { BrowserProvider, TypedDataEncoder } from 'ethers';
+import { BrowserProvider, TypedDataEncoder, ethers } from 'ethers';
 import { cn } from '../lib/utils';
 import type { VerifierNode, Attestation } from '../types';
 import { useWallet } from '../context/WalletContext';
@@ -99,12 +99,34 @@ function AttestTab({ v }: { v: VerifierNode }) {
 
         const jobEscrowAddress = import.meta.env.VITE_CONTRACT_JOB_ESCROW ?? '';
 
-        // We need policyHash and resultHash for the structured data.
-        // If the UI doesn't have them, we use the job's on-chain data.
-        // For the console form, we accept them as opaque — verifier agent supplies real values.
-        // The form uses placeholder hashes so the type compiles; real usage goes via agent.
-        const policyHash = '0x' + '0'.repeat(64);
-        const resultHash = '0x' + '0'.repeat(64);
+        // Fetch real policyHash and resultHash from the chain so the EIP-712
+        // signature is built over the correct values. Using zeros here would
+        // cause ECDSA to recover a wrong address → "not selected verifier".
+        let policyHash = '0x' + '0'.repeat(64);
+        let resultHash = '0x' + '0'.repeat(64);
+        try {
+          const escrowReader = new ethers.Contract(
+            jobEscrowAddress,
+            [
+              'function getJob(uint256 jobId) external view returns (tuple(address requester, address provider, string specCid, bytes32 profileHash, uint8 reproClass, uint8 assurance, uint64 deadline, uint256 payment, uint8 state, bytes32 policyHash, bytes32 resultHash, bytes32 checkpointRoot, string resultCid, uint64 commitBlock, uint8 outcome, uint64 verifyDeadline))',
+              'function selectedVerifiers(uint256 jobId) external view returns (address[])',
+            ],
+            provider
+          );
+          const jobData = await escrowReader.getJob(jobIdBigInt);
+          policyHash = jobData.policyHash;
+          resultHash = jobData.resultHash;
+          // Also warn if connected wallet is not the selected verifier
+          const selected: string[] = await escrowReader.selectedVerifiers(jobIdBigInt);
+          const myAddr = (await signer.getAddress()).toLowerCase();
+          if (selected.length > 0 && !selected.map((a: string) => a.toLowerCase()).includes(myAddr)) {
+            const shortSelected = selected.map((a: string) => a.slice(0, 10) + '…').join(', ');
+            throw new Error(`Your wallet (${myAddr.slice(0, 10)}…) is not the selected verifier for this job. Selected: ${shortSelected}. Switch MetaMask to that account.`);
+          }
+        } catch (fetchErr) {
+          if (fetchErr instanceof Error && fetchErr.message.includes('not the selected verifier')) throw fetchErr;
+          console.warn('[VerifierConsole] Could not fetch on-chain job data:', fetchErr);
+        }
 
         const domain = {
           name: 'ProofOfCompute',

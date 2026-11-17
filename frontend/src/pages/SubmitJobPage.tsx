@@ -556,8 +556,8 @@ export function SubmitJobPage() {
       // 3. Convert budget to wei (1 ETH = 1e18 wei; $1 ≈ 0.000005 ETH at demo rate)
       const paymentWei = BigInt(Math.round(values.budgetUsd * 5e12));
 
-      // 4. Deadline = now + 2 hours
-      const deadlineTs = Math.floor(Date.now() / 1000) + 7200;
+      // 4. Deadline = now + 24 hours (long enough for a manual demo with Hardhat)
+      const deadlineTs = Math.floor(Date.now() / 1000) + 86400;
 
       // 5. Repro class mapping  D→0, T→1, N→2
       const reproMap: Record<string, number> = { D: 0, T: 1, N: 2 };
