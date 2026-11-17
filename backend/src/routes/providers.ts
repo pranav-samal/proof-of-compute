@@ -133,16 +133,19 @@ router.get('/providers', (req: Request, res: Response) => {
 
 router.get('/providers/:address', (req: Request, res: Response) => {
   const { address } = req.params;
+  // Normalize to EIP-55 checksum so lowercase MetaMask addresses match the DB.
+  let normalizedAddress = address;
+  try { normalizedAddress = ethers.getAddress(address); } catch { /* keep original if invalid */ }
 
   const provider = db.get<ProviderRow>(
-    'SELECT * FROM providers WHERE address = :address',
-    { address }
+    'SELECT * FROM providers WHERE LOWER(address) = LOWER(:address)',
+    { address: normalizedAddress }
   );
   if (!provider) return notFound(res, `No provider with address ${address}`);
 
   const profile = db.get<ProfileRow>(
-    'SELECT * FROM provider_profiles WHERE address = :address',
-    { address }
+    'SELECT * FROM provider_profiles WHERE LOWER(address) = LOWER(:address)',
+    { address: normalizedAddress }
   );
 
   return res.json(formatProvider(provider, profile));

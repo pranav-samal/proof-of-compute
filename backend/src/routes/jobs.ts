@@ -77,8 +77,8 @@ router.get('/jobs', (req: Request, res: Response) => {
   let sql = 'SELECT * FROM jobs WHERE 1=1';
   const params: Record<string, unknown> = {};
 
-  if (requester) { sql += ' AND requester = :requester'; params.requester = requester; }
-  if (provider) { sql += ' AND provider = :provider'; params.provider = provider; }
+  if (requester) { sql += ' AND LOWER(requester) = LOWER(:requester)'; params.requester = requester; }
+  if (provider) { sql += ' AND LOWER(provider) = LOWER(:provider)'; params.provider = provider; }
   if (state) { sql += ' AND state = :state'; params.state = state; }
 
   sql += ' ORDER BY created_at DESC';
@@ -90,8 +90,8 @@ router.get('/jobs', (req: Request, res: Response) => {
 
   // Total count (without pagination)
   let countSql = 'SELECT COUNT(*) as cnt FROM jobs WHERE 1=1';
-  if (requester) countSql += ` AND requester = '${requester}'`;
-  if (provider) countSql += ` AND provider = '${provider}'`;
+  if (requester) countSql += ` AND LOWER(requester) = LOWER('${requester}')`;
+  if (provider) countSql += ` AND LOWER(provider) = LOWER('${provider}')`;
   if (state) countSql += ` AND state = '${state}'`;
   const countRow = db.get<{ cnt: number }>(countSql);
 
