@@ -13,28 +13,28 @@ import type { SettlementOutcome } from '../types';
 export interface ChainService {
   /** Register job on-chain: calls JobEscrow.registerJob with msg.value = paymentWei */
   registerJobOnChain(
-    specCid:      string,
-    profileHash:  string,
-    reproClass:   number,   // 0=D, 1=T, 2=N
-    assurance:    number,   // 0–3
-    deadlineTs:   number,   // unix timestamp
-    paymentWei:   bigint,
+    specCid: string,
+    profileHash: string,
+    reproClass: number,   // 0=D, 1=T, 2=N
+    assurance: number,   // 0–3
+    deadlineTs: number,   // unix timestamp
+    paymentWei: bigint,
   ): Promise<{ txHash: string; jobId: string }>;
 
   /** Provider commits result hash and checkpoint root */
   commitResult(
-    jobId:          string,
-    resultHash:     string,
+    jobId: string,
+    resultHash: string,
     checkpointRoot: string,
-    resultCid:      string,
+    resultCid: string,
   ): Promise<string>;   // tx hash
 
   /** Verifier submits attestation with EIP-712 signature */
   submitAttestation(
-    jobId:        string,
-    verdict:      0 | 1 | 2,   // PASS=0, FAIL=1, INCONCLUSIVE=2
+    jobId: string,
+    verdict: 0 | 1 | 2,   // PASS=0, FAIL=1, INCONCLUSIVE=2
     evidenceHash: string,
-    signature:    string,
+    signature: string,
   ): Promise<string>;   // tx hash
 
   /** Query settlement outcome for a job */
@@ -66,7 +66,7 @@ const mockChain: ChainService = {
   registerJobOnChain: async (_specCid, _profileHash, _reproClass, _assurance, _deadlineTs, _paymentWei) => {
     return {
       txHash: '0x' + Math.random().toString(16).slice(2, 66),
-      jobId:  String(Math.floor(Math.random() * 100000)),
+      jobId: String(Math.floor(Math.random() * 100000)),
     };
   },
 
@@ -122,6 +122,8 @@ const JOB_ESCROW_ABI = [
   'function selectVerifiers(uint256 jobId) external',
   'function settle(uint256 jobId) external',
   'function getJob(uint256 jobId) external view returns (tuple(address requester, address provider, string specCid, bytes32 profileHash, uint8 reproClass, uint8 assurance, uint64 deadline, uint256 payment, uint8 state, bytes32 policyHash, bytes32 resultHash, bytes32 checkpointRoot, string resultCid, uint64 commitBlock, uint8 outcome, uint64 verifyDeadline))',
+  // Event needed to extract jobId from registerJob receipt
+  'event JobRegistered(uint256 indexed jobId, address indexed requester, string specCid, bytes32 profileHash, uint256 payment)',
 ];
 
 const PROVIDER_REGISTRY_ABI = [
@@ -176,10 +178,10 @@ const realChain: ChainService = {
   },
 
   async registerJobOnChain(
-    specCid:    string,
+    specCid: string,
     profileHash: string,
     reproClass: number,
-    assurance:  number,
+    assurance: number,
     deadlineTs: number,
     paymentWei: bigint,
   ): Promise<{ txHash: string; jobId: string }> {
@@ -224,10 +226,10 @@ const realChain: ChainService = {
   },
 
   async commitResult(
-    jobId:          string,
-    resultHash:     string,
+    jobId: string,
+    resultHash: string,
     checkpointRoot: string,
-    resultCid:      string,
+    resultCid: string,
   ): Promise<string> {
     if (!this.isContractConfigured()) throw new Error('Wallet not connected');
     await checkNetwork();
@@ -246,10 +248,10 @@ const realChain: ChainService = {
   },
 
   async submitAttestation(
-    jobId:        string,
-    verdict:      0 | 1 | 2,
+    jobId: string,
+    verdict: 0 | 1 | 2,
     evidenceHash: string,
-    signature:    string,
+    signature: string,
   ): Promise<string> {
     if (!this.isContractConfigured()) throw new Error('Wallet not connected');
     await checkNetwork();
