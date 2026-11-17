@@ -15,7 +15,7 @@ import { RPC_URL, CONFIRMATIONS, INDEXER_START_BLOCK, INDEXER_AUTO_ADVANCE } fro
 import { getJobEscrowAddress, getProviderRegistryAddress, loadDeployment } from './abis';
 import * as H from './handlers';
 
-const POLL_INTERVAL_MS = 5_000;
+const POLL_INTERVAL_MS = 2_000;
 
 // ─── Minimal function ABIs for auto-advance ───────────────────────────────
 const ESCROW_CALL_ABI = [
@@ -133,6 +133,33 @@ export async function startIndexer(): Promise<void> {
 
       (global as unknown as { _pocSyncLag: number })._pocSyncLag = latestBlock - getLastBlock();
 
+      // ── Auto-advance runs on EVERY tick, not only when new logs exist. ─────
+      // On Hardhat automine no new blocks are produced between transactions, so
+      // fromBlock > toBlock is the normal idle state. Without this, the indexer
+      // never calls selectVerifiers after commitResult and the job gets stuck in
+      // COMMITTED forever.
+      if (INDEXER_AUTO_ADVANCE) {
+        // If a COMMITTED job is waiting and Hardhat hasn't advanced past
+        // commitBlock+1 yet, mine two empty blocks to unblock selectVerifiers.
+        interface CommittedJob { job_id: string; commit_block: number | null; }
+        const committed = db.all<CommittedJob>(
+          "SELECT job_id, commit_block FROM jobs WHERE state = 'COMMITTED'"
+        );
+        if (committed.length > 0) {
+          const needsMine = committed.some(
+            (j) => j.commit_block !== null && latestBlock <= j.commit_block + 1
+          );
+          if (needsMine) {
+            try {
+              // hardhat_mine only works on a local Hardhat node — safe to call;
+              // on a real network this is a no-op error we silently ignore.
+              await rpcProvider.send('hardhat_mine', ['0x3']);
+            } catch { /* not a Hardhat node — ignore */ }
+          }
+        }
+        await autoAdvance(escrow, await rpcProvider.getBlockNumber());
+      }
+
       if (fromBlock > toBlock) return;
 
       const [escrowLogs, registryLogs] = await Promise.all([
@@ -174,11 +201,6 @@ export async function startIndexer(): Promise<void> {
 
       if (allLogs.length > 0) {
         console.log(`[indexer] Processed ${allLogs.length} events (blocks ${fromBlock}–${toBlock})`);
-      }
-
-      // ── Auto-advance: selectVerifiers and settle ──────────────────────
-      if (INDEXER_AUTO_ADVANCE) {
-        await autoAdvance(escrow, latestBlock);
       }
 
     } catch (err) {
